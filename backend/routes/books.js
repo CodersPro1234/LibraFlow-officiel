@@ -50,6 +50,21 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Helper pour fetch avec timeout et retry
+async function fetchWithRetry(url, options = {}, retries = 2, delay = 800) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const signal = AbortSignal.timeout(8000); // 8 secondes de timeout
+      const response = await fetch(url, { ...options, signal });
+      return response;
+    } catch (err) {
+      if (i === retries - 1) throw err; // propagate
+      console.warn(`[Retry] Tentative ${i + 1} échouée pour ${url}. Retentative dans ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
 // GET /api/books/isbn/:isbn — Récupérer les infos d'un livre via OpenLibrary / Google Books
 router.get('/isbn/:isbn', protect, librarianOnly, async (req, res) => {
   try {
@@ -59,7 +74,18 @@ router.get('/isbn/:isbn', protect, librarianOnly, async (req, res) => {
 
     // 1. Essayer OpenLibrary (Sans limite stricte de quota)
     try {
-      const olResponse = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
+      const olResponse = await fetchWithRetry(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
+      if (!olResponse.ok) {
+        throw new Error(`HTTP ${olResponse.status}`);
+      }
+      const contentType = olResponse.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error(`Contenu non-JSON (${contentType})`);
+      }
       const olData = await olResponse.json();
       const olKey = `ISBN:${isbn}`;
       
@@ -81,7 +107,23 @@ router.get('/isbn/:isbn', protect, librarianOnly, async (req, res) => {
     // 2. Fallback sur Google Books si OpenLibrary ne trouve rien
     if (!bookInfo) {
       try {
-        const gbResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+        const apiKey = process.env.GOOGLE_BOOKS_API_KEY;
+        const gbUrl = apiKey 
+          ? `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&key=${apiKey}`
+          : `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`;
+          
+        const gbResponse = await fetchWithRetry(gbUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          }
+        });
+        if (!gbResponse.ok) {
+          throw new Error(`HTTP ${gbResponse.status}`);
+        }
+        const contentType = gbResponse.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          throw new Error(`Contenu non-JSON (${contentType})`);
+        }
         const gbData = await gbResponse.json();
         
         if (gbData.items && gbData.items.length > 0) {
@@ -140,6 +182,35 @@ router.put('/:id', protect, librarianOnly, bookValidation, async (req, res) => {
     res.json(book);
   } catch (err) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+// POST /api/books/bulk-delete — Supprimer plusieurs livres en masse de manière sécurisée
+router.post('/bulk-delete', protect, librarianOnly, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'Aucun identifiant de livre fourni.' });
+    }
+
+    // Vérifier si certains de ces livres ont des emprunts actifs ou en attente
+    const Loan = require('../models/Loan');
+    const activeLoans = await Loan.find({
+      book: { $in: ids },
+      status: { $in: ['pending', 'active'] },
+    }).populate('book', 'title');
+
+    if (activeLoans.length > 0) {
+      const titles = Array.from(new Set(activeLoans.map(l => l.book?.title || 'Inconnu')));
+      return res.status(400).json({
+        message: `Suppression impossible : des emprunts actifs existent sur les livres suivants : ${titles.join(', ')}. Veuillez retourner ces emprunts d'abord.`,
+      });
+    }
+
+    const result = await Book.deleteMany({ _id: { $in: ids } });
+    res.json({ message: `${result.deletedCount} livre(s) supprimé(s) avec succès.`, deletedCount: result.deletedCount });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 

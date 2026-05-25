@@ -43,9 +43,7 @@ export default function Layout() {
   const notifsRefMobile  = useRef(null);
   const notifsRefDesktop = useRef(null);
 
-  // ── Profile Modal
-  const [showProfile, setShowProfile] = useState(false);
-  const profileRef = useRef(null);
+
 
   useEffect(() => {
     const handleOnline  = () => setIsOffline(false);
@@ -64,7 +62,7 @@ export default function Layout() {
         (notifsRefMobile.current  && notifsRefMobile.current.contains(e.target)) ||
         (notifsRefDesktop.current && notifsRefDesktop.current.contains(e.target));
       if (!clickedInsideNotifs) setShowNotifs(false);
-      if (profileRef.current && !profileRef.current.contains(e.target)) setShowProfile(false);
+
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -127,83 +125,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-slate-50 md:flex">
 
-      {/* Profile Modal */}
-      {showProfile && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div ref={profileRef} className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-slide-up">
-            <div className="bg-gradient-to-br from-sky-500 to-indigo-600 p-8 text-center relative">
-              <button
-                onClick={() => setShowProfile(false)}
-                aria-label="Fermer le profil"
-                className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <div className="w-24 h-24 rounded-full bg-white/20 border-4 border-white/30 mx-auto flex items-center justify-center text-4xl text-white font-bold mb-4 shadow-lg">
-                {user?.name?.charAt(0).toUpperCase()}
-              </div>
-              <h3 className="text-xl font-bold text-white">{user?.name}</h3>
-              <p className="text-sky-100 text-xs font-medium uppercase tracking-widest">
-                {user?.role === "student" ? (user?.studentId || t("student")) : t("admin")}
-              </p>
-            </div>
 
-            <div className="p-6 space-y-6">
-              {user?.role === "student" && (
-                <>
-                  <div className="flex justify-around items-center py-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <div className="text-center">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t("myScore") || "Mon Score"}</p>
-                      <p className="text-2xl font-black text-sky-600">{user?.points || 0} <span className="text-xs">pts</span></p>
-                    </div>
-                    <div className="w-px h-10 bg-slate-200" />
-                    <div className="text-center">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Badges</p>
-                      <p className="text-2xl font-black text-indigo-600">{user?.badges?.length || 0}</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">{t("unlockedBadges") || "Badges débloqués"}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {user?.badges?.length > 0 ? (
-                        user.badges.map((b, i) => (
-                          <div key={i} className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-2xl shadow-sm group relative" title={b.name}>
-                            {b.icon || <Trophy className="w-6 h-6 text-amber-500" />}
-                            <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] px-2 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-xl z-10">
-                              {b.name}
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-xs text-slate-400 italic px-1">Aucun badge pour le moment</p>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Lien vers page profil complète */}
-              <Link
-                to="/app/profile"
-                onClick={() => setShowProfile(false)}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-sky-50 text-sky-600 text-sm font-bold hover:bg-sky-100 transition-colors"
-              >
-                Voir mon profil complet
-                <ChevronRight className="w-4 h-4" />
-              </Link>
-
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-rose-50 text-rose-600 text-sm font-bold hover:bg-rose-100 transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                {t("logout")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Offline Banner */}
       {isOffline && (
@@ -317,11 +239,15 @@ export default function Layout() {
           {/* User info */}
           <div className="mt-auto space-y-3 border-t border-slate-200 pt-3">
             <button
-              onClick={() => setShowProfile(true)}
-              className="w-full flex items-center gap-3 rounded-2xl bg-slate-50 p-3 hover:bg-sky-50 transition-all border border-transparent hover:border-sky-100 group"
+              onClick={() => { setIsMobileMenuOpen(false); navigate("/app/profile"); }}
+              className="w-full flex items-center gap-3 rounded-2xl bg-slate-50 p-3 hover:bg-sky-50 transition-all border border-transparent hover:border-sky-100 group animate-fade-in"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 text-white font-semibold flex-shrink-0 shadow-sm group-hover:scale-110 transition-transform">
-                {user?.name?.charAt(0).toUpperCase() || "U"}
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 text-white font-semibold flex-shrink-0 shadow-sm group-hover:scale-110 transition-transform overflow-hidden">
+                {user?.profileImage ? (
+                  <img src={user.profileImage} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  user?.name?.charAt(0).toUpperCase() || "U"
+                )}
               </div>
               <div className="min-w-0 flex-1 flex flex-col items-start translate-y-[-1px]">
                 <span className="text-slate-500 font-normal block text-[10px] uppercase tracking-wider mb-0.5">{t("welcome")}</span>

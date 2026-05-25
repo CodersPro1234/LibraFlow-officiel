@@ -1,5 +1,11 @@
 require('dotenv').config();
 
+// Résolution DNS prioritaire IPv4 pour éviter les pannes dual-stack (fetch failed)
+const dns = require('dns');
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 // ── Validation des variables d'environnement critiques ──
 const REQUIRED_ENV = ['MONGO_URI', 'JWT_SECRET'];
 REQUIRED_ENV.forEach((key) => {

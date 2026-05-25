@@ -5,7 +5,7 @@ import { useLanguage } from "../context/LanguageContext";
 import { useToast } from "../hooks/useToast";
 import { generateLoanPDF } from "../utils/generatePDF";
 import ScannerModal from "../components/ScannerModal";
-import { Search, Plus, Trash2, CheckCircle2, XCircle, BookOpen, Camera, RefreshCw, X, Info, ImagePlus } from "lucide-react";
+import { Search, Plus, Trash2, CheckCircle2, XCircle, BookOpen, Camera, RefreshCw, X, Info, ImagePlus, Pencil } from "lucide-react";
 
 const GENRES = ["Informatique", "Mathematiques", "Sciences", "Gestion", "Litterature", "Autre"];
 
@@ -41,6 +41,8 @@ export default function Catalogue() {
   const [isbnLoading, setIsbnLoading] = useState(false);
   const [showIsbnScanner, setShowIsbnScanner] = useState(false);
   const [customGenre, setCustomGenre] = useState("");
+  const [editingBookId, setEditingBookId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   // Pagination
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -48,6 +50,26 @@ export default function Catalogue() {
   const LIMIT = 20;
 
   const [isFromCache, setIsFromCache] = useState(false);
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Voulez-vous vraiment supprimer les ${selectedIds.length} livres sélectionnés ?`)) return;
+    
+    try {
+      await api.post("/books/bulk-delete", { ids: selectedIds });
+      toast.success(`${selectedIds.length} livre(s) supprimé(s) avec succès !`);
+      setSelectedIds([]);
+      fetchBooks();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Erreur lors de la suppression en masse");
+    }
+  };
 
   const fetchBooks = (currentPage = 1) => {
     setLoading(true);
@@ -142,6 +164,27 @@ export default function Catalogue() {
     }
   };
 
+  const handleEditClick = (book) => {
+    setSelectedBook(null);
+    setForm({
+      title: book.title,
+      author: book.author,
+      genre: GENRES.includes(book.genre) ? book.genre : "Autre",
+      totalCopies: book.totalCopies,
+      description: book.description || "",
+      coverImage: book.coverImage || "",
+    });
+    if (!GENRES.includes(book.genre)) {
+      setCustomGenre(book.genre);
+    } else {
+      setCustomGenre("");
+    }
+    setIsbn(book.isbn || "");
+    setEditingBookId(book._id);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const handleAdd = async (e) => {
     e.preventDefault();
     try {
@@ -149,16 +192,29 @@ export default function Catalogue() {
       if (payload.genre === "Autre" && customGenre.trim() !== "") {
         payload.genre = customGenre.trim();
       }
-      await api.post("/books", payload);
+      if (isbn.trim()) {
+        payload.isbn = isbn.trim().replace(/[- ]/g, '');
+      } else {
+        payload.isbn = undefined; // s'assurer d'omettre l'ISBN vide
+      }
+
+      if (editingBookId) {
+        await api.put(`/books/${editingBookId}`, payload);
+        toast.success("Livre modifié avec succès !");
+      } else {
+        await api.post("/books", payload);
+        toast.success("Livre ajouté avec succès !");
+      }
+
       setShowForm(false);
       setForm(DEFAULT_FORM);
       setCustomGenre("");
       setIsbn("");
+      setEditingBookId(null);
       setMissingFields({});
       fetchBooks();
-      toast.success("Livre ajouté avec succès !");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Erreur lors de l'ajout");
+      toast.error(err.response?.data?.message || "Erreur lors de l'enregistrement");
     }
   };
 
@@ -212,15 +268,26 @@ export default function Catalogue() {
             )}
           </div>
         </div>
-        {user?.role === "librarian" && (
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="flex items-center gap-2 bg-gradient-to-r from-sky-500 to-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:from-sky-600 hover:to-indigo-700 transition-all shadow-md"
-          >
-            <Plus className="w-4 h-4" />
-            {t("addBook")}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {user?.role === "librarian" && selectedIds.length > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              className="flex items-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm active:scale-95 animate-slide-down"
+            >
+              <Trash2 className="w-4 h-4" />
+              Supprimer ({selectedIds.length})
+            </button>
+          )}
+          {user?.role === "librarian" && (
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="flex items-center gap-2 bg-gradient-to-r from-sky-500 to-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:from-sky-600 hover:to-indigo-700 transition-all shadow-md"
+            >
+              <Plus className="w-4 h-4" />
+              {t("addBook")}
+            </button>
+          )}
+        </div>
       </div>
 
       {borrowSuccess && (
@@ -240,7 +307,7 @@ export default function Catalogue() {
       {/* Formulaire ajout livre */}
       {showForm && (
         <form onSubmit={handleAdd} className="bg-white rounded-xl shadow-card border border-slate-100 p-6 mb-6 animate-slide-down">
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">{t("addBook")}</h3>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">{editingBookId ? "Modifier le livre" : t("addBook")}</h3>
 
           {/* ── ISBN Scanner ── */}
           <div className="mb-4 p-3 bg-indigo-50 border border-indigo-100 rounded-xl">
@@ -320,8 +387,8 @@ export default function Catalogue() {
           )}
 
           <div className="flex gap-3 mt-4">
-            <button type="submit" className="btn btn-primary">{t("add")}</button>
-            <button type="button" onClick={() => { setShowForm(false); setIsbn(""); setForm(DEFAULT_FORM); setMissingFields({}); }} className="btn btn-secondary">{t("cancel")}</button>
+            <button type="submit" className="btn btn-primary">{editingBookId ? "Enregistrer" : t("add")}</button>
+            <button type="button" onClick={() => { setShowForm(false); setIsbn(""); setForm(DEFAULT_FORM); setEditingBookId(null); setMissingFields({}); }} className="btn btn-secondary">{t("cancel")}</button>
           </div>
         </form>
       )}
@@ -336,6 +403,27 @@ export default function Catalogue() {
           <option value="">{t("allGenres")}</option>
           {GENRES.map((g) => <option key={g}>{g}</option>)}
         </select>
+        {user?.role === "librarian" && books.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              const allBookIds = books.map(b => b._id);
+              const isAllSelected = allBookIds.every(id => selectedIds.includes(id));
+              if (isAllSelected) {
+                setSelectedIds(prev => prev.filter(id => !allBookIds.includes(id)));
+              } else {
+                setSelectedIds(prev => Array.from(new Set([...prev, ...allBookIds])));
+              }
+            }}
+            className="px-4 py-2 bg-slate-50 text-slate-700 font-bold rounded-xl hover:bg-slate-100 border border-slate-200/60 text-xs flex items-center justify-center gap-1.5 transition-all w-full sm:w-auto active:scale-95"
+          >
+            {books.map(b => b._id).every(id => selectedIds.includes(id)) ? (
+              <>Tout désélectionner</>
+            ) : (
+              <>Tout sélectionner</>
+            )}
+          </button>
+        )}
       </div>
 
       {!loading && (
@@ -360,16 +448,40 @@ export default function Catalogue() {
           <p className="text-sm">{t("noBooks")}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {books.map((book) => {
             const style = getStyle(book.genre);
             const isAvailable = book.availableCopies > 0;
             const isBorrowing = borrowingId === book._id;
 
             return (
-              <div key={book._id} onClick={() => setSelectedBook(book)} className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col cursor-pointer relative">
+              <div key={book._id} onClick={() => setSelectedBook(book)} className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-[0_12px_24px_-4px_rgba(148,163,184,0.18)] hover:-translate-y-1 transition-all duration-300 flex flex-col cursor-pointer relative">
                 {/* ── Couverture grande taille ── */}
-                <div className="relative h-52 overflow-hidden flex-shrink-0">
+                <div className="relative h-72 overflow-hidden flex-shrink-0 bg-slate-50">
+                  {/* Effet 3D réaliste de dos/tranche de livre sur toutes les couvertures */}
+                  <div className="absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-black/25 via-black/10 to-transparent z-10 pointer-events-none" />
+                  <div className="absolute left-3 top-0 bottom-0 w-[1px] bg-white/10 z-10 pointer-events-none" />
+
+                  {/* Case à cocher personnalisée pour la suppression groupée */}
+                  {user?.role === "librarian" && (
+                    <div 
+                      onClick={(e) => { e.stopPropagation(); handleToggleSelect(book._id); }}
+                      className="absolute top-2 left-2 z-20 flex items-center justify-center cursor-pointer"
+                    >
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all border ${
+                        selectedIds.includes(book._id)
+                          ? "bg-indigo-600 border-indigo-600 text-white shadow scale-105"
+                          : "bg-white/80 border-slate-300 hover:border-indigo-500 hover:bg-white"
+                      }`}>
+                        {selectedIds.includes(book._id) && (
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {book.coverImage ? (
                     <>
                       <img
@@ -385,48 +497,68 @@ export default function Catalogue() {
                       {/* Fallback si l'image fail */}
                       <div
                         style={{ display: "none" }}
-                        className={`absolute inset-0 bg-gradient-to-br ${style.bg} flex flex-col items-center justify-center`}
+                        className={`absolute inset-0 bg-gradient-to-br ${style.bg} flex-col justify-between p-4 shadow-[inset_15px_0_20px_-5px_rgba(0,0,0,0.35)]`}
                       >
-                        <div className="absolute -top-4 -left-4 w-20 h-20 rounded-full bg-white opacity-10" />
-                        <div className="absolute -bottom-3 -right-3 w-16 h-16 rounded-full bg-white opacity-10" />
-                        <BookOpen className="w-12 h-12 text-white/60 z-10" />
-                        <p className="text-white text-xs font-semibold text-center px-3 mt-2 leading-tight line-clamp-2 z-10">{book.title}</p>
+                        <div className="flex flex-col items-center mt-2 z-10 w-full px-2">
+                          <span className="text-4xl drop-shadow-md filter saturate-120 mb-1">{style.icon}</span>
+                          <p className="text-white/60 text-[9px] font-bold text-center uppercase tracking-widest">{book.genre}</p>
+                        </div>
+                        <div className="flex-1 flex items-center justify-center z-10 px-2 my-2">
+                          <h4 className="text-white text-xs sm:text-sm font-extrabold text-center leading-tight line-clamp-3 drop-shadow font-serif">
+                            {book.title}
+                          </h4>
+                        </div>
+                        <div className="z-10 w-full px-2 text-center">
+                          <p className="text-white/80 text-[10px] font-semibold truncate italic">
+                            {book.author}
+                          </p>
+                        </div>
                       </div>
                     </>
                   ) : (
-                    <div className={`w-full h-full bg-gradient-to-br ${style.bg} flex flex-col items-center justify-center relative`}>
-                      <div className="absolute -top-4 -left-4 w-20 h-20 rounded-full bg-white opacity-10" />
-                      <div className="absolute -bottom-3 -right-3 w-16 h-16 rounded-full bg-white opacity-10" />
-                      <span className="text-6xl drop-shadow-lg z-10">{style.icon}</span>
-                      <p className="text-white text-xs font-semibold text-center px-3 mt-2 leading-tight line-clamp-2 drop-shadow z-10">{book.title}</p>
+                    <div className={`w-full h-full bg-gradient-to-br ${style.bg} flex flex-col justify-between p-4 relative shadow-[inset_15px_0_20px_-5px_rgba(0,0,0,0.35)]`}>
+                      <div className="flex flex-col items-center mt-2 z-10 w-full px-2">
+                        <span className="text-4xl drop-shadow-md filter saturate-120 mb-1">{style.icon}</span>
+                        <p className="text-white/60 text-[9px] font-bold text-center uppercase tracking-widest">{book.genre}</p>
+                      </div>
+                      <div className="flex-1 flex items-center justify-center z-10 px-2 my-2">
+                        <h4 className="text-white text-xs sm:text-sm font-extrabold text-center leading-tight line-clamp-3 drop-shadow font-serif">
+                          {book.title}
+                        </h4>
+                      </div>
+                      <div className="z-10 w-full px-2 text-center">
+                        <p className="text-white/80 text-[10px] font-semibold truncate italic">
+                          {book.author}
+                        </p>
+                      </div>
                     </div>
                   )}
 
                   {/* Badge disponibilité */}
                   <div className="absolute top-2 right-2 z-20">
                     {isAvailable ? (
-                      <span className="flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md">
-                        <CheckCircle2 className="w-3 h-3" /> {t("availableStatus")}
+                      <span className="flex items-center gap-1 bg-emerald-500/90 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-md border border-emerald-400/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> {t("availableStatus")}
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md">
-                        <XCircle className="w-3 h-3" /> {t("borrowedStatus")}
+                      <span className="flex items-center gap-1 bg-rose-500/90 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-md border border-rose-400/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white" /> {t("borrowedStatus")}
                       </span>
                     )}
                   </div>
                 </div>
 
                 {/* ── Infos ── */}
-                <div className="p-3 flex flex-col flex-1 bg-white">
-                  <p className="text-sm font-bold text-slate-900 leading-tight line-clamp-2 mb-1">{book.title}</p>
-                  <p className="text-xs text-slate-500 truncate mb-2">{book.author}</p>
-                  <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${style.light} ${style.text} w-fit mb-3`}>{book.genre}</span>
+                <div className="p-4 flex flex-col flex-1 bg-white">
+                  <p className="text-sm font-bold text-slate-800 leading-snug line-clamp-2 mb-1 group-hover:text-indigo-600 transition-colors duration-200" title={book.title}>{book.title}</p>
+                  <p className="text-xs text-slate-400 font-medium truncate mb-2">{book.author}</p>
+                  <span className={`inline-block text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md ${style.light} ${style.text} w-fit mb-3`}>{book.genre}</span>
 
-                  <div className="flex items-center justify-between text-xs mb-3 mt-auto">
-                    <span className="text-slate-400">{t("copiesLabel")}</span>
-                    <span className="font-semibold">
-                      <span className={isAvailable ? "text-emerald-600" : "text-red-500"}>{book.availableCopies}</span>
-                      <span className="text-slate-300">/{book.totalCopies}</span>
+                  <div className="flex items-center justify-between text-xs mb-3 mt-auto pt-2 border-t border-slate-50">
+                    <span className="text-slate-400 font-medium">{t("copiesLabel")}</span>
+                    <span className="font-semibold text-slate-700">
+                      <span className={isAvailable ? "text-emerald-600" : "text-rose-500"}>{book.availableCopies}</span>
+                      <span className="text-slate-300"> / {book.totalCopies}</span>
                     </span>
                   </div>
 
@@ -434,10 +566,10 @@ export default function Catalogue() {
                     <button
                       onClick={(e) => { e.stopPropagation(); handleBorrow(book); }}
                       disabled={!isAvailable || isBorrowing}
-                      className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-98 ${
                         isAvailable && !isBorrowing
-                          ? "bg-gradient-to-r from-sky-500 to-indigo-600 text-white hover:shadow-md"
-                          : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                          ? "bg-gradient-to-r from-sky-500 to-indigo-600 text-white hover:shadow-md hover:brightness-105"
+                          : "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200/50"
                       }`}
                     >
                       {isBorrowing ? (
@@ -449,12 +581,22 @@ export default function Catalogue() {
                   )}
 
                   {user?.role === "librarian" && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(book._id); }}
-                      className="w-full py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all border border-transparent hover:border-red-100 flex items-center justify-center gap-1.5"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" /> {t("delete")}
-                    </button>
+                    <div className="flex gap-2 w-full mt-auto" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => handleEditClick(book)}
+                        className="flex-1 py-2 rounded-xl text-xs font-extrabold bg-sky-50 text-sky-600 hover:bg-sky-100 hover:text-sky-700 transition-all border border-sky-100/50 flex items-center justify-center gap-1 active:scale-95"
+                      >
+                        <Pencil className="w-3 h-3" />
+                        Modifier
+                      </button>
+                      <button
+                        onClick={() => handleDelete(book._id)}
+                        className="flex-1 py-2 rounded-xl text-xs font-extrabold bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-600 transition-all border border-rose-100/50 flex items-center justify-center gap-1 active:scale-95"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Supprimer
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -570,11 +712,30 @@ export default function Catalogue() {
                     {selectedBook.availableCopies > 0 ? t("borrow") : t("unavailable")}
                   </button>
                 )}
+                {user?.role === "librarian" && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { handleEditClick(selectedBook); }}
+                      className="px-5 py-2.5 bg-sky-50 text-sky-700 font-bold rounded-xl border border-sky-200 hover:bg-sky-100 transition-all flex items-center gap-1.5 text-sm"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      Modifier
+                    </button>
+                    <button
+                      onClick={() => { handleDelete(selectedBook._id); setSelectedBook(null); }}
+                      className="px-5 py-2.5 bg-red-50 text-red-700 font-bold rounded-xl border border-red-200 hover:bg-red-100 transition-all flex items-center gap-1.5 text-sm"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Supprimer
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }

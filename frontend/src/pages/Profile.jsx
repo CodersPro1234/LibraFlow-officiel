@@ -6,7 +6,7 @@ import { useToast } from "../hooks/useToast";
 import api from "../api/axios";
 import {
   User, Mail, Lock, Hash, Save, LogOut, Trophy,
-  Star, ChevronLeft, CheckCircle2, Shield, Globe,
+  Star, ChevronLeft, CheckCircle2, Shield, Globe, Camera
 } from "lucide-react";
 
 export default function Profile() {
@@ -29,6 +29,30 @@ export default function Profile() {
   const handleChange = (field, value) => {
     setForm((f) => ({ ...f, [field]: value }));
     setEdited(true);
+  };
+
+  const handleAvatarUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("L'image est trop lourde (max. 2 Mo)");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64String = reader.result;
+      try {
+        setSaving(true);
+        const { data } = await api.put("/auth/profile", { profileImage: base64String });
+        if (updateUser) updateUser(data);
+        toast.success("Photo de profil mise à jour ✓");
+      } catch (err) {
+        toast.error("Erreur lors de l'envoi de l'image");
+      } finally {
+        setSaving(false);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSave = async (e) => {
@@ -80,10 +104,38 @@ export default function Profile() {
         <div className="absolute bottom-0 right-4 w-24 h-24 rounded-full bg-white/5" />
 
         <div className="relative z-10 flex items-center gap-6">
-          {/* Avatar */}
-          <div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center text-3xl font-black text-white shadow-lg flex-shrink-0">
-            {user?.name?.charAt(0).toUpperCase() || "U"}
-          </div>
+          {/* Avatar avec téléversement */}
+          <label 
+            htmlFor="avatar-upload" 
+            className="group relative w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center shadow-lg flex-shrink-0 cursor-pointer overflow-hidden transition-all duration-300 hover:border-white/60 hover:scale-105"
+            title="Changer de photo de profil"
+          >
+            {user?.profileImage ? (
+              <img 
+                src={user.profileImage} 
+                alt="Avatar" 
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" 
+              />
+            ) : (
+              <span className="text-3xl font-black text-white group-hover:opacity-0 transition-opacity">
+                {user?.name?.charAt(0).toUpperCase() || "U"}
+              </span>
+            )}
+            
+            {/* Overlay d'appareil photo sur hover */}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1">
+              <Camera className="w-6 h-6 text-white" />
+              <span className="text-[9px] text-white/90 font-bold uppercase tracking-wider">Modifier</span>
+            </div>
+            
+            <input 
+              type="file" 
+              id="avatar-upload" 
+              accept="image/*" 
+              className="hidden" 
+              onChange={handleAvatarUpload} 
+            />
+          </label>
 
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-black truncate">{user?.name}</h1>
@@ -91,20 +143,20 @@ export default function Profile() {
             <div className="flex items-center gap-2 mt-2">
               <Shield className="w-3.5 h-3.5 text-sky-200" />
               <span className="text-xs font-bold text-sky-100 uppercase tracking-widest">
-                {isStudent ? t("student") : t("admin")}
+                {user?.role === "student" ? (user?.studentId || t("student")) : t("admin")}
               </span>
             </div>
           </div>
 
           {/* Score (étudiants) */}
           {isStudent && (
-            <div className="text-center hidden sm:block">
+            <div className="text-center flex-shrink-0 bg-white/10 px-4 py-2.5 rounded-2xl backdrop-blur-sm border border-white/10 shadow-inner">
               <div className="flex items-center gap-1 mb-1 justify-center">
-                <Star className="w-4 h-4 text-yellow-300" />
-                <span className="text-xs text-sky-100 font-bold uppercase tracking-wider">Score</span>
+                <Star className="w-3.5 h-3.5 text-yellow-300 fill-yellow-300" />
+                <span className="text-[10px] text-sky-100 font-bold uppercase tracking-wider">Score</span>
               </div>
-              <p className="text-3xl font-black">{user?.points || 0}</p>
-              <p className="text-sky-200 text-xs">points</p>
+              <p className="text-2xl font-black leading-none mb-0.5">{user?.points || 0}</p>
+              <p className="text-sky-200 text-[10px] font-semibold">points</p>
             </div>
           )}
         </div>

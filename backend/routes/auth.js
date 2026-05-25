@@ -48,6 +48,7 @@ router.post(
         email: user.email,
         role: user.role,
         studentId: user.studentId,
+        profileImage: user.profileImage || "",
         token: generateToken(user._id),
       });
     } catch (err) {
@@ -81,6 +82,7 @@ router.post(
         studentId: user.studentId,
         points: user.points,
         badges: user.badges,
+        profileImage: user.profileImage || "",
         token: generateToken(user._id),
       });
     } catch (err) {
@@ -124,7 +126,7 @@ router.put(
     if (!errors.isEmpty()) return res.status(400).json({ message: errors.array()[0].msg });
 
     try {
-      const { name, email, password, studentId } = req.body;
+      const { name, email, password, studentId, profileImage } = req.body;
       const user = await User.findById(req.user._id).select("+password");
       if (!user) return res.status(404).json({ message: "Utilisateur introuvable" });
 
@@ -137,6 +139,7 @@ router.put(
 
       if (name)      user.name      = name;
       if (studentId !== undefined) user.studentId = studentId;
+      if (profileImage !== undefined) user.profileImage = profileImage;
       if (password)  user.password  = await bcrypt.hash(password, 12);
 
       await user.save();
@@ -149,6 +152,7 @@ router.put(
         studentId: user.studentId,
         points:    user.points,
         badges:    user.badges,
+        profileImage: user.profileImage || "",
       });
     } catch (err) {
       res.status(500).json({ message: err.message });

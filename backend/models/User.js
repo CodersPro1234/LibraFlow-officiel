@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: [true, 'Le mot de passe est obligatoire'], minlength: 6, select: false },
   role: { type: String, enum: ['student', 'librarian'], default: 'student' },
   studentId: { type: String, unique: true, sparse: true, trim: true },
+  profileImage: { type: String, default: "" },
   points: { type: Number, default: 0 },
   badges: [{
     name: String,
