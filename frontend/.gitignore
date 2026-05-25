@@ -1,0 +1,14 @@
+# Dépendances
+node_modules/
+
+# Build de production — généré automatiquement
+dist/
+
+# Variables d'environnement
+.env
+.env.local
+.env.production
+
+# Système
+.DS_Store
+Thumbs.db
