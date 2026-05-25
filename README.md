@@ -321,3 +321,4 @@ Projet réalisé dans le cadre du **Hackathon BIT (Burkina Institute of Technolo
 ## 📄 Licence
 
 MIT — libre d'utilisation, modification et distribution.
+# LibraFlow-officiel
