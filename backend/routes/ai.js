@@ -174,4 +174,46 @@ You remember the conversation context and use it to give coherent responses.`,
   }
 });
 
+const fs = require("fs");
+const path = require("path");
+
+// ── POST /api/ai/transcribe (Groq Whisper-large-v3) ──
+router.post("/transcribe", protect, async (req, res) => {
+  let tempFilePath = null;
+  try {
+    const { audio } = req.body;
+    if (!audio) return res.status(400).json({ message: "Audio manquant" });
+
+    const base64Data = audio.replace(/^data:audio\/\w+;base64,/, "");
+    const buffer = Buffer.from(base64Data, "base64");
+
+    const tempDir = path.join(__dirname, "../temp");
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    tempFilePath = path.join(tempDir, `transcribe_${Date.now()}.wav`);
+    fs.writeFileSync(tempFilePath, buffer);
+
+    if (!groq) {
+      if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+      return res.json({ text: "", error: "Groq non configuré" });
+    }
+
+    const transcription = await groq.audio.transcriptions.create({
+      file: fs.createReadStream(tempFilePath),
+      model: "whisper-large-v3",
+      language: "fr",
+    });
+
+    if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+
+    res.json({ text: transcription.text });
+  } catch (err) {
+    if (tempFilePath && fs.existsSync(tempFilePath)) {
+      try { fs.unlinkSync(tempFilePath); } catch (e) {}
+    }
+    res.status(500).json({ message: "Erreur transcription : " + err.message });
+  }
+});
+
 module.exports = router;

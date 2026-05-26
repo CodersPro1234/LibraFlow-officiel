@@ -151,8 +151,8 @@ const WELCOME = {
 const PANEL_W = 360;
 const PANEL_H = 500;
 
-/* Détection support Web Speech API (absent sur Firefox) */
-const STT_SUPPORTED = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+/* Détection support dictée vocale (toujours vrai grâce à notre Whisper universel) */
+const STT_SUPPORTED = true;
 
 /* ══════════════════════════════
    Composant principal
@@ -167,6 +167,7 @@ export default function FloatingAI() {
   const [loading,   setLoading]   = useState(false);
   const [tts,       setTts]       = useState(false);
   const [listening, setListening] = useState(false);
+  const [activeConvId, setActiveConvId] = useState(null);
 
   /* ── Drag & Drop ── */
   const [pos,         setPos]         = useState(null);   // { x, y } du bouton
@@ -179,7 +180,8 @@ export default function FloatingAI() {
   /* ── Autres refs ── */
   const bottomRef  = useRef(null);
   const inputRef   = useRef(null);
-  const recognRef  = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
   /* Page IA dédiée → pas de widget flottant (doublon inutile) */
   const onAIPage = location.pathname === "/app/ai";
@@ -191,6 +193,38 @@ export default function FloatingAI() {
     setPos({ x, y });
     setInitialized(true);
   }, []);
+
+  const loadLatestConversation = async () => {
+    try {
+      const { data: convs } = await api.get("/conversations");
+      if (convs && convs.length > 0) {
+        const latest = convs[0];
+        setActiveConvId(latest._id);
+        const { data: fullConv } = await api.get(`/conversations/${latest._id}`);
+        if (fullConv.messages && fullConv.messages.length > 0) {
+          const formatted = fullConv.messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+            timestamp: m.timestamp || new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+          }));
+          setMessages(formatted);
+        } else {
+          setMessages([WELCOME]);
+        }
+      } else {
+        setMessages([WELCOME]);
+        setActiveConvId(null);
+      }
+    } catch (err) {
+      setMessages([WELCOME]);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      loadLatestConversation();
+    }
+  }, [isOpen]);
 
   /* ── Listeners globaux mousemove / mouseup / touch ── */
   useEffect(() => {
@@ -263,21 +297,41 @@ export default function FloatingAI() {
   const handleSend = async () => {
     const text = input.trim();
     if (!text || loading) return;
-    const userMsg = { role: "user", content: text };
+    
+    let convId = activeConvId;
+    const ts = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    const userMsg = { role: "user", content: text, timestamp: ts };
+    
+    if (!convId) {
+      try {
+        const { data } = await api.post("/conversations", { title: text.slice(0, 60) });
+        convId = data._id;
+        setActiveConvId(data._id);
+      } catch (err) {
+        // Fallback
+      }
+    }
+
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
     setLoading(true);
     try {
-      // Le backend attend : { message: string, history: [{role, text}] }
       const res = await api.post("/ai/chat", {
         message: text,
         history: messages.map((m) => ({ role: m.role, text: m.content })),
       });
       const reply = res.data.reply || res.data.message || "Je n'ai pas pu répondre.";
-      const aiMsg = { role: "assistant", content: reply };
-      setMessages((p) => [...p, aiMsg]);
+      const aiMsg = { role: "assistant", content: reply, timestamp: ts };
+      const finalMessages = [...newMessages, aiMsg];
+      setMessages(finalMessages);
       if (tts) speakText(reply);
+
+      if (convId) {
+        await api.put(`/conversations/${convId}`, {
+          messages: finalMessages,
+        });
+      }
     } catch {
       setMessages((p) => [...p, { role: "assistant", content: "Désolée, une erreur s'est produite. Réessayez !" }]);
     } finally {
@@ -288,7 +342,21 @@ export default function FloatingAI() {
   /* ── Envoi message édité ── */
   const handleSendWithText = async (text, historyBefore) => {
     if (!text || loading) return;
-    const userMsg = { role: "user", content: text };
+    
+    let convId = activeConvId;
+    const ts = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    const userMsg = { role: "user", content: text, timestamp: ts };
+    
+    if (!convId) {
+      try {
+        const { data } = await api.post("/conversations", { title: text.slice(0, 60) });
+        convId = data._id;
+        setActiveConvId(data._id);
+      } catch (err) {
+        // Fallback
+      }
+    }
+
     const newMessages = [...historyBefore, userMsg];
     setMessages(newMessages);
     setLoading(true);
@@ -298,9 +366,16 @@ export default function FloatingAI() {
         history: historyBefore.map((m) => ({ role: m.role, text: m.content })),
       });
       const reply = res.data.reply || res.data.message || "Je n'ai pas pu répondre.";
-      const aiMsg = { role: "assistant", content: reply };
-      setMessages((p) => [...p, aiMsg]);
+      const aiMsg = { role: "assistant", content: reply, timestamp: ts };
+      const finalMessages = [...newMessages, aiMsg];
+      setMessages(finalMessages);
       if (tts) speakText(reply);
+
+      if (convId) {
+        await api.put(`/conversations/${convId}`, {
+          messages: finalMessages,
+        });
+      }
     } catch {
       setMessages((p) => [...p, { role: "assistant", content: "Désolée, une erreur s'est produite. Réessayez !" }]);
     } finally {
@@ -308,29 +383,52 @@ export default function FloatingAI() {
     }
   };
 
-  /* ── Dictée vocale (STT) ── */
-  const toggleListening = () => {
-    if (!STT_SUPPORTED) {
-      // Firefox ne supporte pas SpeechRecognition — afficher un message utile
-      setMessages((p) => [
-        ...p,
-        {
-          role: "assistant",
-          content: "⚠️ La dictée vocale n'est pas supportée par Firefox. Utilisez Chrome ou Edge pour cette fonctionnalité.",
-        },
-      ]);
+  /* ── Dictée vocale via Whisper (Cross-browser, compatible Firefox) ── */
+  const toggleListening = async () => {
+    if (listening) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      setListening(false);
       return;
     }
-    if (listening) { recognRef.current?.stop(); setListening(false); return; }
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const r = new SR();
-    r.lang = "fr-FR"; r.interimResults = false;
-    r.onresult = (e) => setInput((p) => p + e.results[0][0].transcript);
-    r.onend    = () => setListening(false);
-    r.onerror  = () => setListening(false);
-    recognRef.current = r;
-    r.start();
-    setListening(true);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          const base64Audio = reader.result;
+          setLoading(true);
+          try {
+            const { data } = await api.post("/ai/transcribe", { audio: base64Audio });
+            if (data.text) {
+              setInput((p) => p + data.text + " ");
+            }
+          } catch (err) {
+            // Fallback
+          } finally {
+            setLoading(false);
+          }
+        };
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      mediaRecorder.start();
+      setListening(true);
+    } catch (err) {
+      // Erreur micro
+    }
   };
 
   /* ── Calcul position et hauteur du panel ── */

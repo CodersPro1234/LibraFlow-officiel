@@ -210,7 +210,8 @@ export default function AI() {
   /* TTS / STT */
   const [speaking,  setSpeaking]  = useState(false);
   const [listening, setListening] = useState(false);
-  const recognitionRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
   /* Résumé */
   const [booksList,  setBooksList]  = useState([]);
@@ -230,6 +231,8 @@ export default function AI() {
   const [adminConvs, setAdminConvs] = useState([]);
   const [adminLoad,  setAdminLoad]  = useState(false);
   const [adminSel,   setAdminSel]   = useState(null);
+  const [adminSelMsgs, setAdminSelMsgs] = useState([]);
+  const [adminSelLoading, setAdminSelLoading] = useState(false);
 
   /* ── Chargement initial ── */
   const selectConversation = useCallback(async (conv) => {
@@ -381,19 +384,51 @@ export default function AI() {
   };
 
   /* ── STT ── */
-  const toggleListening = () => {
-    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRec) { toast.error("🦊 Firefox ne supporte pas la dictée vocale. Utilisez Chrome ou Edge."); return; }
-    if (listening) { recognitionRef.current?.stop(); setListening(false); return; }
-    const rec      = new SpeechRec();
-    rec.lang       = "fr-FR";
-    rec.continuous = false;
-    rec.onresult   = (e) => setInput((p) => p + e.results[0][0].transcript + " ");
-    rec.onend      = () => setListening(false);
-    rec.onerror    = () => setListening(false);
-    rec.start();
-    recognitionRef.current = rec;
-    setListening(true);
+  const toggleListening = async () => {
+    if (listening) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      setListening(false);
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          const base64Audio = reader.result;
+          setSending(true);
+          try {
+            const { data } = await api.post("/ai/transcribe", { audio: base64Audio });
+            if (data.text) {
+              setInput((p) => p + data.text + " ");
+            }
+          } catch (err) {
+            toast.error("Erreur de transcription audio");
+          } finally {
+            setSending(false);
+          }
+        };
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      mediaRecorder.start();
+      setListening(true);
+    } catch (err) {
+      toast.error("Impossible d'accéder au microphone");
+    }
   };
 
   /* ── Résumé ── */
@@ -440,11 +475,31 @@ export default function AI() {
     finally { setAdminLoad(false); }
   };
 
+  const handleSelectAdminConv = async (conv) => {
+    if (adminSel?._id === conv._id) {
+      setAdminSel(null);
+      setAdminSelMsgs([]);
+      return;
+    }
+    setAdminSel(conv);
+    setAdminSelLoading(true);
+    setAdminSelMsgs([]);
+    try {
+      const { data } = await api.get(`/conversations/${conv._id}`);
+      setAdminSelMsgs(data.messages || []);
+    } catch {
+      toast.error("Impossible de charger le détail des messages");
+      setAdminSel(null);
+    } finally {
+      setAdminSelLoading(false);
+    }
+  };
+
   /* ══════════════════════════════════
      RENDU
   ══════════════════════════════════ */
   return (
-    <div className="animate-fade-in flex flex-col h-[calc(100vh-8rem)] -mx-6 -my-8 md:-mx-8">
+    <div className="animate-fade-in flex flex-col h-[calc(100vh-4rem)] md:h-screen -mx-6 -my-8 md:-mx-8 md:-my-8">
 
       {/* ── Onglets ── */}
       <div className="flex items-center gap-1 px-4 py-3 bg-white border-b border-slate-200 overflow-x-auto flex-shrink-0">
@@ -741,7 +796,7 @@ export default function AI() {
                   {adminConvs.map((conv) => (
                     <div
                       key={conv._id}
-                      onClick={() => setAdminSel(adminSel?._id === conv._id ? null : conv)}
+                      onClick={() => handleSelectAdminConv(conv)}
                       className="bg-white rounded-2xl border border-slate-100 shadow-card p-4 cursor-pointer hover:shadow-hover transition-all"
                     >
                       <div className="flex items-center gap-4">
@@ -758,9 +813,45 @@ export default function AI() {
                         </div>
                       </div>
 
-                      {adminSel?._id === conv._id && conv.lastMessage && (
-                        <div className="mt-3 pt-3 border-t border-slate-100">
-                          <p className="text-xs text-slate-500 italic">"{conv.lastMessage}"</p>
+                      {adminSel?._id === conv._id && (
+                        <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
+                          {adminSelLoading ? (
+                            <div className="flex justify-center py-4">
+                              <RefreshCw className="w-5 h-5 animate-spin text-slate-400" />
+                            </div>
+                          ) : adminSelMsgs.length === 0 ? (
+                            <p className="text-xs text-slate-400 italic text-center py-2">Aucun message dans cette conversation</p>
+                          ) : (
+                            <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                              {adminSelMsgs.map((msg, index) => {
+                                const isUser = msg.role === "user";
+                                return (
+                                  <div
+                                    key={index}
+                                    className={`flex gap-2.5 ${isUser ? "flex-row-reverse" : "flex-row"}`}
+                                  >
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold ${
+                                      isUser ? "bg-indigo-600 text-white" : "bg-sky-500 text-white"
+                                    }`}>
+                                      {isUser ? (conv.user?.name?.charAt(0).toUpperCase() || "U") : "L"}
+                                    </div>
+                                    <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
+                                      isUser
+                                        ? "bg-indigo-600 text-white rounded-tr-sm"
+                                        : "bg-slate-100 text-slate-800 rounded-tl-sm"
+                                    }`}>
+                                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                                      {msg.timestamp && (
+                                        <p className={`text-[8px] mt-1 text-right ${isUser ? "text-indigo-200" : "text-slate-400"}`}>
+                                          {msg.timestamp}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

@@ -58,7 +58,11 @@ router.get("/admin", protect, librarianOnly, async (req, res) => {
 // ── GET /api/conversations/:id — charger une conversation complète ──
 router.get("/:id", protect, async (req, res) => {
   try {
-    const conv = await Conversation.findOne({ _id: req.params.id, user: req.user._id }).lean();
+    const query = req.user.role === "librarian"
+      ? { _id: req.params.id }
+      : { _id: req.params.id, user: req.user._id };
+
+    const conv = await Conversation.findOne(query).populate("user", "name email studentId").lean();
     if (!conv) return res.status(404).json({ message: "Conversation introuvable" });
     res.json(conv);
   } catch (err) {

@@ -3,10 +3,11 @@ const { Schema, Types } = mongoose;
 
 const MessageSchema = new Schema(
   {
-    role:    { type: String, enum: ["user", "assistant"], required: true },
-    content: { type: String, required: true },
+    role:      { type: String, enum: ["user", "assistant"], required: true },
+    content:   { type: String, required: true },
+    timestamp: { type: String },
   },
-  { _id: false, timestamps: { createdAt: "timestamp", updatedAt: false } }
+  { _id: false }
 );
 
 const ConversationSchema = new Schema(
