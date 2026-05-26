@@ -29,6 +29,20 @@ const stopSpeaking = () => synth?.cancel();
 /* ──────────────────────────────────
    Sous-composants
 ────────────────────────────────── */
+/* Formate une date : "Aujourd'hui", "Hier", ou "12 mai" */
+function fmtConvDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d)) return "";
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dDay  = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff  = Math.round((today - dDay) / 86400000);
+  if (diff === 0) return "Aujourd'hui";
+  if (diff === 1) return "Hier";
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
+
 function ConvItem({ conv, isActive, onSelect, onDelete }) {
   return (
     <div
@@ -42,9 +56,12 @@ function ConvItem({ conv, isActive, onSelect, onDelete }) {
       <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
       <div className="flex-1 min-w-0">
         <p className="text-xs font-semibold truncate">{conv.title || "Nouvelle conversation"}</p>
-        {conv.lastMessage && (
-          <p className="text-[10px] text-slate-400 truncate mt-0.5">{conv.lastMessage}</p>
-        )}
+        <p className="text-[10px] text-slate-400 mt-0.5">
+          {fmtConvDate(conv.updatedAt || conv.createdAt)}
+          {conv.messages?.length > 0 && (
+            <span className="ml-1 opacity-60">· {conv.messages.length} msg</span>
+          )}
+        </p>
       </div>
       <button
         onClick={(e) => { e.stopPropagation(); onDelete(conv._id); }}

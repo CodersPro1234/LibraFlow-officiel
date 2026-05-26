@@ -220,8 +220,12 @@ export default function FloatingAI() {
     }
   };
 
+  // Charger la conversation seulement à la PREMIÈRE ouverture
+  // (pas à chaque fois que le panel se rouvre → évite 2 appels API inutiles)
+  const alreadyLoaded = useRef(false);
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !alreadyLoaded.current) {
+      alreadyLoaded.current = true;
       loadLatestConversation();
     }
   }, [isOpen]);
@@ -287,7 +291,8 @@ export default function FloatingAI() {
     dragOffset.current = rect ? { x: cx - rect.left, y: cy - rect.top } : { x: 0, y: 0 };
   };
 
-  const onMouseDown  = (e) => { if (e.button === 0) { startDrag(e.clientX, e.clientY); e.preventDefault(); } };
+  // ⚠️ Pas de e.preventDefault() ici — il empêcherait l'événement click de se déclencher
+  const onMouseDown  = (e) => { if (e.button === 0) { startDrag(e.clientX, e.clientY); } };
   const onTouchStart = (e) => startDrag(e.touches[0].clientX, e.touches[0].clientY);
 
   /* Click vs drag : toggle seulement si pas de mouvement */
@@ -602,17 +607,16 @@ export default function FloatingAI() {
         onMouseDown={onMouseDown}
         onTouchStart={onTouchStart}
         onClick={handleToggle}
-        className={`group relative flex items-center shadow-2xl transition-all duration-300 ease-out cursor-grab active:cursor-grabbing select-none ${
+        className={`group relative flex items-center shadow-2xl transition-colors duration-200 cursor-grab active:cursor-grabbing select-none ${
           isOpen
             ? "w-14 h-14 justify-center rounded-full bg-slate-800 text-white"
-            : "h-14 px-3 rounded-full hover:rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-600 text-white hover:scale-105 hover:shadow-sky-500/50 hover:shadow-xl animate-bounce"
+            : "h-14 px-3 rounded-full hover:rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-600 text-white"
         }`}
-        style={!isOpen ? { animationDuration: '3s' } : {}}
         aria-label={isOpen ? "Fermer l'assistant Lia" : "Ouvrir l'assistant Lia"}
       >
-        {/* Halo d'énergie animé (plus visible et plus large) */}
+        {/* Halo pulsé — position absolute, n'affecte PAS getBoundingClientRect du bouton */}
         {!isOpen && (
-          <div className="absolute inset-[-4px] rounded-full bg-sky-400 animate-ping opacity-60 group-hover:opacity-0 pointer-events-none" style={{ animationDuration: '1.5s' }} />
+          <div className="absolute inset-0 rounded-full bg-sky-400/40 animate-pulse pointer-events-none" />
         )}
 
         <div className={`relative z-10 flex items-center justify-center flex-shrink-0 pointer-events-none transition-all duration-300 ${

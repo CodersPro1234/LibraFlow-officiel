@@ -8,7 +8,9 @@ import featAI from "../assets/feat-ai.png";
 import featQR from "../assets/feat-qr.png";
 import featCatalog from "../assets/feat-catalog.png";
 import aboutImg from "../assets/about-librarian.png";
-import homeVideo from "../assets/homevideo.mp4";
+// Vidéo dans public/ → Vite ne la bundle pas, URL stable "/homevideo.mp4"
+// Le navigateur la charge séparément (mise en cache HTTP long terme)
+const HOME_VIDEO = "/homevideo.mp4";
 
 export default function Landing() {
   const { t, lang, toggleLang } = useLanguage();
@@ -137,16 +139,20 @@ export default function Landing() {
       {/* Hero Section */}
       <section id="home" className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden bg-slate-900">
         {/* Video Background — poster affiché pendant le chargement */}
+        {/* preload="none" → le navigateur NE télécharge PAS la vidéo au chargement initial.
+            Elle démarre dès que le composant monte (autoPlay), mais le fetch est déclenché
+            en arrière-plan sans bloquer le rendu de la page. */}
         <video
           autoPlay
           loop
           muted
           playsInline
+          preload="none"
           poster="/hero-poster.jpg"
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover z-0 opacity-60"
         >
-          <source src={homeVideo} type="video/mp4" />
+          <source src={HOME_VIDEO} type="video/mp4" />
         </video>
 
         {/* Overlay for better readability */}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
@@ -20,6 +20,9 @@ export default function Loans() {
   const [loading, setLoading] = useState(true);
   const [isFromCache, setIsFromCache] = useState(false);
   const navigate = useNavigate();
+  // Ref pour éviter le double toast causé par React.StrictMode en développement
+  // (StrictMode exécute chaque useEffect 2 fois pour détecter les side effects)
+  const errorShownRef = useRef(false);
 
   const fetchAll = function () {
     const isAdmin = user?.role === "librarian";
@@ -34,12 +37,13 @@ export default function Loans() {
 
     Promise.all(calls)
       .then(function (results) {
+        errorShownRef.current = false; // Reset au succès
         setLoans(results[0].data);
         setIsFromCache(!!results[0].isFromCache);
-        
+
         const booksData = results[1].data;
         setBooks(Array.isArray(booksData) ? booksData : (booksData.books || []));
-        
+
         if (isAdmin && results[2]) {
           setUsers(results[2].data.filter((u) => u.role === "student"));
         }
@@ -47,7 +51,12 @@ export default function Loans() {
       })
       .catch(function (err) {
         setLoading(false);
-        if (loans.length === 0) toast.error(t("errorOccurred"));
+        // Afficher l'erreur une seule fois même si StrictMode appelle fetchAll 2 fois
+        if (!errorShownRef.current) {
+          errorShownRef.current = true;
+          const msg = err?.response?.data?.message || t("errorOccurred");
+          toast.error(msg);
+        }
       });
   };
 
