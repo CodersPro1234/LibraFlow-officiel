@@ -6,7 +6,7 @@ import { useToast } from "../hooks/useToast";
 import api from "../api/axios";
 import {
   User, Mail, Lock, Hash, Save, LogOut, Trophy,
-  Star, ChevronLeft, CheckCircle2, Shield, Globe, Camera
+  Star, ChevronLeft, CheckCircle2, Shield, Globe, Camera, Phone
 } from "lucide-react";
 
 export default function Profile() {
@@ -15,14 +15,14 @@ export default function Profile() {
   const navigate = useNavigate();
   const toast    = useToast();
 
-  const [form, setForm]       = useState({ name: "", email: "", studentId: "", password: "", confirmPwd: "" });
+  const [form, setForm]       = useState({ name: "", email: "", studentId: "", phone: "", password: "", confirmPwd: "" });
   const [saving, setSaving]   = useState(false);
   const [edited, setEdited]   = useState(false);
 
   /* Pré-remplir le formulaire avec les données actuelles */
   useEffect(() => {
     if (user) {
-      setForm({ name: user.name || "", email: user.email || "", studentId: user.studentId || "", password: "", confirmPwd: "" });
+      setForm({ name: user.name || "", email: user.email || "", studentId: user.studentId || "", phone: user.phone || "", password: "", confirmPwd: "" });
     }
   }, [user]);
 
@@ -63,7 +63,7 @@ export default function Profile() {
     }
     setSaving(true);
     try {
-      const payload = { name: form.name, email: form.email };
+      const payload = { name: form.name, email: form.email, phone: form.phone };
       if (user.role === "student") payload.studentId = form.studentId;
       if (form.password) payload.password = form.password;
 
@@ -140,6 +140,12 @@ export default function Profile() {
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-black truncate">{user?.name}</h1>
             <p className="text-sky-100 text-sm mt-0.5">{user?.email}</p>
+            {user?.phone && (
+              <p className="flex items-center gap-1.5 text-sky-200 text-xs mt-0.5">
+                <Phone className="w-3 h-3" />
+                {user.phone}
+              </p>
+            )}
             <div className="flex items-center gap-2 mt-2">
               <Shield className="w-3.5 h-3.5 text-sky-200" />
               <span className="text-xs font-bold text-sky-100 uppercase tracking-widest">
@@ -238,6 +244,21 @@ export default function Profile() {
               </div>
             </div>
           )}
+
+          {/* Téléphone */}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Téléphone</label>
+            <div className="relative">
+              <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={(e) => handleChange("phone", e.target.value)}
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm outline-none focus:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-all"
+                placeholder="+226 70 00 00 00"
+              />
+            </div>
+          </div>
 
           {/* Séparateur mot de passe */}
           <div className="pt-2 pb-1">

@@ -26,14 +26,23 @@ async function expireOverdueReservations(io) {
     await loan.save();
 
     // Remettre le livre en stock (sans dépasser totalCopies)
-    await Book.findOneAndUpdate(
+    const expiredBookUpdate = await Book.findOneAndUpdate(
       { _id: loan.book._id },
       [{ $set: {
         availableCopies: {
           $min: [{ $add: ["$availableCopies", 1] }, "$totalCopies"]
         }
-      }}]
+      }}],
+      { new: true }
     );
+    // Diffuser le nouveau stock à tous les clients connectés
+    if (io && expiredBookUpdate) {
+      io.emit("book_availability", {
+        bookId:          expiredBookUpdate._id.toString(),
+        availableCopies: expiredBookUpdate.availableCopies,
+        totalCopies:     expiredBookUpdate.totalCopies,
+      });
+    }
 
     // Notifier l'étudiant via Socket.io si disponible
     if (io) {
@@ -133,6 +142,13 @@ router.post("/", protect, async (req, res) => {
     );
     if (!book)
       return res.status(400).json({ message: "Aucune copie disponible" });
+
+    // Diffuser le nouveau stock à tous les clients connectés
+    req.io?.emit("book_availability", {
+      bookId:          book._id.toString(),
+      availableCopies: book.availableCopies,
+      totalCopies:     book.totalCopies,
+    });
 
     // Délai de récupération : 24h pour l'étudiant, immédiat pour le bibliothécaire
     const now             = new Date();
@@ -255,14 +271,23 @@ router.put("/:id/return", protect, librarianOnly, async (req, res) => {
     await loan.save();
 
     // Remettre le livre en stock (SANS dépasser totalCopies)
-    await Book.findOneAndUpdate(
+    const returnedBookUpdate = await Book.findOneAndUpdate(
       { _id: loan.book._id },
       [{ $set: {
         availableCopies: {
           $min: [{ $add: ["$availableCopies", 1] }, "$totalCopies"]
         }
-      }}]
+      }}],
+      { new: true }
     );
+    // Diffuser le nouveau stock à tous les clients connectés
+    if (returnedBookUpdate) {
+      req.io?.emit("book_availability", {
+        bookId:          returnedBookUpdate._id.toString(),
+        availableCopies: returnedBookUpdate.availableCopies,
+        totalCopies:     returnedBookUpdate.totalCopies,
+      });
+    }
 
     // Points & badges étudiant
     const student = await User.findById(loan.user._id);
@@ -346,14 +371,23 @@ router.delete("/:id", protect, async (req, res) => {
     await loan.save();
 
     // Remettre le livre en stock (sans dépasser totalCopies)
-    await Book.findOneAndUpdate(
+    const cancelledBookUpdate = await Book.findOneAndUpdate(
       { _id: loan.book._id },
       [{ $set: {
         availableCopies: {
           $min: [{ $add: ["$availableCopies", 1] }, "$totalCopies"]
         }
-      }}]
+      }}],
+      { new: true }
     );
+    // Diffuser le nouveau stock à tous les clients connectés
+    if (cancelledBookUpdate) {
+      req.io?.emit("book_availability", {
+        bookId:          cancelledBookUpdate._id.toString(),
+        availableCopies: cancelledBookUpdate.availableCopies,
+        totalCopies:     cancelledBookUpdate.totalCopies,
+      });
+    }
 
     // Notification temps réel
     req.io?.to(loan.user._id.toString()).emit("notification", {

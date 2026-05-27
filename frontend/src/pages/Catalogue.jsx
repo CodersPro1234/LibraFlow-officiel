@@ -3,6 +3,7 @@ import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useToast } from "../hooks/useToast";
+import { useSocket } from "../context/SocketContext";
 import { generateLoanPDF } from "../utils/generatePDF";
 import ScannerModal from "../components/ScannerModal";
 import { Search, Plus, Trash2, CheckCircle2, XCircle, BookOpen, Camera, RefreshCw, X, Info, ImagePlus, Pencil, Sparkles } from "lucide-react";
@@ -26,6 +27,7 @@ export default function Catalogue() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const toast = useToast();
+  const { socket } = useSocket();
   const [books, setBooks] = useState([]);
   const [search, setSearch] = useState("");
   const [genre, setGenre] = useState("");
@@ -109,6 +111,20 @@ export default function Catalogue() {
   useEffect(() => {
     if (page > 1) fetchBooks(page);
   }, [page]);
+
+  // ── Mise à jour temps réel des exemplaires disponibles ──
+  useEffect(() => {
+    if (!socket) return;
+    const handler = ({ bookId, availableCopies, totalCopies }) => {
+      setBooks((prev) =>
+        prev.map((b) =>
+          b._id === bookId ? { ...b, availableCopies, totalCopies } : b
+        )
+      );
+    };
+    socket.on("book_availability", handler);
+    return () => socket.off("book_availability", handler);
+  }, [socket]);
 
   // ── ISBN Autofill
   const handleIsbnLookup = async (isbnValue = isbn) => {
