@@ -56,11 +56,14 @@ export default function Loans() {
       })
       .catch(function (err) {
         setLoading(false);
-        // Afficher l'erreur une seule fois même si StrictMode appelle fetchAll 2 fois
         if (!errorShownRef.current) {
           errorShownRef.current = true;
-          const msg = err?.response?.data?.message || t("errorOccurred");
-          toast.error(msg);
+          if (!navigator.onLine) {
+            toast.error("Aucune donnée en cache. Ouvrez les emprunts en ligne d'abord.");
+          } else {
+            const msg = err?.response?.data?.message || t("errorOccurred");
+            toast.error(msg);
+          }
         }
       });
   };
@@ -289,11 +292,21 @@ export default function Loans() {
       {/* ── ÉTAT CHARGEMENT / VIDE ── */}
       {loading && (
         <div className="flex items-center justify-center h-40 gap-2 text-slate-400">
-          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          <span className="text-sm">{t("loading")}</span>
+          {!isOnline ? (
+            // Offline : montrer WifiOff au lieu d'un spinner infini
+            <>
+              <WifiOff className="w-5 h-5 text-slate-400" />
+              <span className="text-sm">Chargement depuis le cache…</span>
+            </>
+          ) : (
+            <>
+              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <span className="text-sm">{t("loading")}</span>
+            </>
+          )}
         </div>
       )}
 

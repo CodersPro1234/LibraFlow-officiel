@@ -4,6 +4,7 @@ import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useToast } from "../hooks/useToast";
+import CachedImage from "../components/CachedImage";
 import {
   Search, TrendingUp, BookOpen, Clock, ArrowRight,
   Star, Trophy, CheckCircle2, XCircle, Flame, ChevronRight,
@@ -20,7 +21,7 @@ function BookCard({ book, onBorrow, borrowingId }) {
       <div className="relative aspect-[2/3] w-full overflow-hidden bg-slate-100">
         {book.coverImage ? (
           <>
-            <img
+            <CachedImage
               src={book.coverImage}
               alt={book.title}
               className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-[1.04] transition-transform duration-500"
@@ -125,6 +126,20 @@ export default function StudentHome() {
       ]);
       setStats(sRes.data);
       setLoans((lRes.data || []).filter((l) => l.status === "active").slice(0, 3));
+
+      // Pré-cacher les couvertures des top livres en arrière-plan
+      if ("caches" in window && sRes.data?.topBooks?.length > 0) {
+        const urls = sRes.data.topBooks
+          .map((b) => b.coverImage)
+          .filter((u) => u && u.startsWith("http"));
+        caches.open("libraflow-images").then((cache) => {
+          urls.forEach((url) =>
+            cache.match(url).then((hit) => {
+              if (!hit) fetch(url, { mode: "cors" }).then((r) => r.ok && cache.put(url, r)).catch(() => {});
+            })
+          );
+        }).catch(() => {});
+      }
     } catch {
       /* silencieux — offline cache géré par axios interceptor */
     }
@@ -332,11 +347,12 @@ export default function StudentHome() {
                 {/* Couverture — ratio 2:3 */}
                 <div className="relative aspect-[2/3] w-full overflow-hidden bg-slate-100 flex-shrink-0">
                   {book.coverImage ? (
-                    <img
+                    <CachedImage
                       src={book.coverImage}
                       alt={book.title}
                       className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-[1.04] transition-transform duration-500"
                       loading="lazy"
+                      onError={(e) => { e.target.style.display = "none"; }}
                     />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-sky-50 to-indigo-50">

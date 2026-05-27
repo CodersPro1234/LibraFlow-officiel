@@ -8,6 +8,7 @@ import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { generateLoanPDF } from "../utils/generatePDF";
 import ScannerModal from "../components/ScannerModal";
 import { Search, Plus, Trash2, CheckCircle2, XCircle, BookOpen, Camera, RefreshCw, X, Info, ImagePlus, Pencil, Sparkles, WifiOff } from "lucide-react";
+import CachedImage from "../components/CachedImage";
 
 const GENRES = ["Informatique", "Mathematiques", "Sciences", "Gestion", "Litterature", "Autre"];
 
@@ -95,10 +96,32 @@ export default function Catalogue() {
         }
         setIsFromCache(!!res.isFromCache);
         setLoading(false);
+
+        // Pré-cacher toutes les images externes en arrière-plan (silencieux)
+        if (!res.isFromCache && "caches" in window) {
+          const bookList = Array.isArray(res.data) ? res.data : (res.data.books || []);
+          const urls = bookList
+            .map((b) => b.coverImage)
+            .filter((u) => u && u.startsWith("http"));
+          if (urls.length > 0) {
+            caches.open("libraflow-images").then((cache) => {
+              urls.forEach((url) =>
+                cache.match(url).then((hit) => {
+                  if (!hit) fetch(url, { mode: "cors" }).then((r) => r.ok && cache.put(url, r)).catch(() => {});
+                })
+              );
+            }).catch(() => {});
+          }
+        }
       })
       .catch(() => {
         setLoading(false);
-        if (books.length === 0) toast.error(t("noBooks"));
+        if (!isOnline) {
+          // Offline sans cache disponible
+          toast.error("Aucune donnée en cache. Ouvrez le catalogue en ligne d'abord.");
+        } else if (books.length === 0) {
+          toast.error(t("noBooks"));
+        }
       });
   };
 
@@ -549,7 +572,7 @@ export default function Catalogue() {
 
                   {book.coverImage ? (
                     <>
-                      <img
+                      <CachedImage
                         src={book.coverImage}
                         alt={book.title}
                         className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-[1.04] transition-transform duration-500"
@@ -767,7 +790,7 @@ export default function Catalogue() {
             {/* Image gauche */}
             <div className="sm:w-2/5 min-h-[250px] sm:min-h-[400px] bg-slate-100 relative flex-shrink-0">
               {selectedBook.coverImage ? (
-                <img src={selectedBook.coverImage} alt={selectedBook.title} className="w-full h-full object-cover" />
+                <CachedImage src={selectedBook.coverImage} alt={selectedBook.title} className="w-full h-full object-cover" />
               ) : (
                 <div className={`w-full h-full bg-gradient-to-br ${getStyle(selectedBook.genre).bg} flex items-center justify-center`}>
                   <span className="text-8xl drop-shadow-md">{getStyle(selectedBook.genre).icon}</span>
