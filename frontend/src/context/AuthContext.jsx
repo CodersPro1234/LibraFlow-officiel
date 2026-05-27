@@ -1,5 +1,6 @@
 import { createContext, useContext, useState } from 'react';
 import api from '../api/axios';
+import { clearCache } from '../utils/offlineDB';
 
 const AuthContext = createContext();
 
@@ -18,6 +19,7 @@ export function AuthProvider({ children }) {
   const logout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    clearCache(); // vider le cache IndexedDB au déconnexion
     setUser(null);
   };
 

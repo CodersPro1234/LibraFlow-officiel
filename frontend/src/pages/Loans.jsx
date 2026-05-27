@@ -4,13 +4,15 @@ import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useToast } from "../hooks/useToast";
+import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import QRScanner from "../components/QRScanner";
-import { X } from "lucide-react";
+import { X, WifiOff } from "lucide-react";
 
 export default function Loans() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const toast = useToast();
+  const { isOnline } = useNetworkStatus();
   const location = useLocation();
   const [loans, setLoans] = useState([]);
   const [books, setBooks] = useState([]);
@@ -104,6 +106,7 @@ export default function Loans() {
   };
 
   const handleCancel = async function (loanId) {
+    if (!isOnline) { toast.error("Connexion internet requise pour annuler une réservation"); return; }
     if (!window.confirm("Annuler cette réservation ? Le livre sera remis en stock.")) return;
     try {
       await api.delete(`/loans/${loanId}`);
@@ -143,12 +146,21 @@ export default function Loans() {
         {user && user.role === "librarian" && (
           <div className="flex items-center gap-2 flex-wrap">
             <button
-              onClick={function () { setShowScanner(true); }}
-              className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-50 transition-all shadow-sm"
+              onClick={function () {
+                if (!isOnline) { toast.error("Connexion requise pour scanner un QR code"); return; }
+                setShowScanner(true);
+              }}
+              disabled={!isOnline}
+              title={!isOnline ? "Connexion internet requise" : ""}
+              className={`flex items-center gap-2 border px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm ${
+                isOnline
+                  ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                  : "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed"
+              }`}
             >
-              <span>📷</span>
-              <span className="hidden sm:inline">{t("scanQR")}</span>
-              <span className="sm:hidden">Scan</span>
+              {isOnline ? <span>📷</span> : <WifiOff className="w-4 h-4" />}
+              <span className="hidden sm:inline">{isOnline ? t("scanQR") : "Hors-ligne"}</span>
+              <span className="sm:hidden">{isOnline ? "Scan" : "—"}</span>
             </button>
 
             <button

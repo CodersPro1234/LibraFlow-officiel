@@ -3,10 +3,11 @@ import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useToast } from "../hooks/useToast";
+import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import {
   MessageSquare, BookOpen, Star, BarChart2, Plus, Trash2,
   Send, Volume2, VolumeX, Mic, MicOff, RefreshCw, ChevronLeft,
-  Users, Sparkles, BookMarked, Bot, User, Pencil, Check, X, Copy,
+  Users, Sparkles, BookMarked, Bot, User, Pencil, Check, X, Copy, WifiOff,
 } from "lucide-react";
 
 /* ══════════════════════════════════
@@ -306,6 +307,7 @@ export default function AI() {
   const { user }    = useAuth();
   const { t }       = useLanguage();
   const toast       = useToast();
+  const { isOnline } = useNetworkStatus();
   const isLibrarian = user?.role === "librarian";
 
   const TABS = [
@@ -425,6 +427,7 @@ export default function AI() {
   /* ── Envoi chat ── */
   const handleSend = async () => {
     if (!input.trim() || sending) return;
+    if (!isOnline) { toast.error("Connexion internet requise pour utiliser l'IA"); return; }
     let conv = activeConv;
     if (!conv) {
       try {
@@ -715,13 +718,27 @@ export default function AI() {
                 <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-slate-400" /></div>
               ) : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center mb-4 shadow-lg">
-                    <Bot className="w-7 h-7 text-white" />
-                  </div>
-                  <h3 className="text-slate-700 font-bold mb-2">Bonjour ! Je suis Lia 👋</h3>
-                  <p className="text-slate-400 text-sm max-w-xs leading-relaxed">
-                    Posez-moi vos questions sur les livres, demandez un résumé, des recommandations, ou explorez le catalogue.
-                  </p>
+                  {!isOnline ? (
+                    <>
+                      <div className="w-14 h-14 rounded-2xl bg-slate-200 flex items-center justify-center mb-4">
+                        <WifiOff className="w-7 h-7 text-slate-400" />
+                      </div>
+                      <h3 className="text-slate-600 font-bold mb-2">Lia est hors-ligne</h3>
+                      <p className="text-slate-400 text-sm max-w-xs leading-relaxed">
+                        L'IA nécessite une connexion internet. Reconnectez-vous pour discuter avec Lia.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center mb-4 shadow-lg">
+                        <Bot className="w-7 h-7 text-white" />
+                      </div>
+                      <h3 className="text-slate-700 font-bold mb-2">Bonjour ! Je suis Lia 👋</h3>
+                      <p className="text-slate-400 text-sm max-w-xs leading-relaxed">
+                        Posez-moi vos questions sur les livres, demandez un résumé, des recommandations, ou explorez le catalogue.
+                      </p>
+                    </>
+                  )}
                 </div>
               ) : (
                 messages.map((msg, i) => (
@@ -783,7 +800,8 @@ export default function AI() {
                 </button>
                 <button
                   onClick={handleSend}
-                  disabled={!input.trim() || sending}
+                  disabled={!input.trim() || sending || !isOnline}
+                  title={!isOnline ? "Connexion requise" : ""}
                   className="p-3 bg-gradient-to-r from-sky-500 to-indigo-600 text-white rounded-xl hover:shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
                 >
                   <Send className="w-4 h-4" />

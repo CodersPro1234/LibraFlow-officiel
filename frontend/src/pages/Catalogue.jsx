@@ -4,9 +4,10 @@ import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useToast } from "../hooks/useToast";
 import { useSocket } from "../context/SocketContext";
+import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { generateLoanPDF } from "../utils/generatePDF";
 import ScannerModal from "../components/ScannerModal";
-import { Search, Plus, Trash2, CheckCircle2, XCircle, BookOpen, Camera, RefreshCw, X, Info, ImagePlus, Pencil, Sparkles } from "lucide-react";
+import { Search, Plus, Trash2, CheckCircle2, XCircle, BookOpen, Camera, RefreshCw, X, Info, ImagePlus, Pencil, Sparkles, WifiOff } from "lucide-react";
 
 const GENRES = ["Informatique", "Mathematiques", "Sciences", "Gestion", "Litterature", "Autre"];
 
@@ -28,6 +29,7 @@ export default function Catalogue() {
   const { t } = useLanguage();
   const toast = useToast();
   const { socket } = useSocket();
+  const { isOnline } = useNetworkStatus();
   const [books, setBooks] = useState([]);
   const [search, setSearch] = useState("");
   const [genre, setGenre] = useState("");
@@ -643,16 +645,23 @@ export default function Catalogue() {
                   {/* Bouton étudiant */}
                   {user?.role === "student" && (
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleBorrow(book); }}
-                      disabled={!isAvailable || isBorrowing}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!isOnline) { toast.error("Connexion requise pour réserver un livre"); return; }
+                        handleBorrow(book);
+                      }}
+                      disabled={!isAvailable || isBorrowing || !isOnline}
+                      title={!isOnline ? "Connexion internet requise" : ""}
                       className={`w-full py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
-                        isAvailable && !isBorrowing
+                        isAvailable && !isBorrowing && isOnline
                           ? "bg-gradient-to-r from-sky-500 to-indigo-600 text-white hover:shadow-md hover:brightness-105"
                           : "bg-slate-100 text-slate-400 cursor-not-allowed"
                       }`}
                     >
                       {isBorrowing
                         ? <><RefreshCw className="w-3 h-3 animate-spin" /> Réservation...</>
+                        : !isOnline
+                        ? <><WifiOff className="w-3 h-3" /> Hors-ligne</>
                         : <><BookOpen className="w-3 h-3" /> {isAvailable ? "Réserver" : "Indisponible"}</>
                       }
                     </button>

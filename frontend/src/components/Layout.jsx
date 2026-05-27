@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import { useLanguage } from "../context/LanguageContext";
+import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import LanguageToggle from "./LanguageToggle";
 import FloatingAI from "./FloatingAI";
 import logo from "../assets/logo_LibraFlow.png";
@@ -21,6 +22,8 @@ import {
   X,
   Menu,
   Users,
+  WifiOff,
+  Wifi,
 } from "lucide-react";
 
 const navItems = [
@@ -35,7 +38,8 @@ export default function Layout() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const { isOnline, wasOffline } = useNetworkStatus();
+  const isOffline = !isOnline;
 
   // ── Notifications
   const { notifications, unreadCount, markAllRead } = useSocket();
@@ -309,9 +313,31 @@ export default function Layout() {
       </aside>
 
       {/* ── Main content ── */}
-      <main className="min-w-0 flex-1 p-4 sm:p-6 md:p-8">
-        <div className="mx-auto max-w-7xl animate-fade-in">
-          <Outlet />
+      <main className="min-w-0 flex-1 flex flex-col">
+
+        {/* ── Bannière HORS-LIGNE ── */}
+        {isOffline && (
+          <div className="flex items-center gap-3 px-4 py-2.5 bg-slate-800 text-white text-xs font-semibold animate-fade-in flex-shrink-0">
+            <WifiOff className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+            <span>
+              Mode hors-ligne — données affichées depuis le cache.
+              <span className="text-slate-400 ml-1 font-normal">Les actions (emprunts, retours, IA) sont désactivées.</span>
+            </span>
+          </div>
+        )}
+
+        {/* ── Bannière CONNEXION RÉTABLIE ── */}
+        {wasOffline && isOnline && (
+          <div className="flex items-center gap-3 px-4 py-2.5 bg-emerald-600 text-white text-xs font-semibold animate-fade-in flex-shrink-0">
+            <Wifi className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>Connexion rétablie — données actualisées automatiquement.</span>
+          </div>
+        )}
+
+        <div className="p-4 sm:p-6 md:p-8 flex-1">
+          <div className="mx-auto max-w-7xl animate-fade-in">
+            <Outlet />
+          </div>
         </div>
       </main>
 
