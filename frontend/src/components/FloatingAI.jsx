@@ -147,9 +147,13 @@ const WELCOME = {
   content: "Bonjour ! Je suis Lia, votre assistante LibraFlow 📚 Je peux vous aider à trouver un livre, obtenir des recommandations ou répondre à vos questions. Comment puis-je vous aider ?",
 };
 
-/* Dimensions du panel */
-const PANEL_W = 360;
-const PANEL_H = 500;
+/* Dimensions du panel (PANEL_W est la largeur max — on la clamp sur mobile) */
+const PANEL_W_MAX = 360;
+const PANEL_H     = 500;
+const BTN_SIZE    = 56; // w-14 = 56px
+
+/** Largeur effective du panel selon la taille d'écran */
+const getPanelW = () => Math.min(PANEL_W_MAX, window.innerWidth - 16);
 
 /* Détection support dictée vocale (toujours vrai grâce à notre Whisper universel) */
 const STT_SUPPORTED = true;
@@ -186,10 +190,12 @@ export default function FloatingAI() {
   /* Page IA dédiée → pas de widget flottant (doublon inutile) */
   const onAIPage = location.pathname === "/app/ai";
 
-  /* ── Position initiale : bas-droite ── */
+  /* ── Position initiale : bas-droite (bouton toujours visible) ── */
   useEffect(() => {
-    const x = window.innerWidth  - PANEL_W - 24;
-    const y = window.innerHeight - 80;
+    // On place le BOUTON à droite — pas le panel
+    // Sur mobile 375px : bouton à 375 - 56 - 16 = 303px  ✓
+    const x = window.innerWidth  - BTN_SIZE - 16;
+    const y = window.innerHeight - BTN_SIZE - 16;
     setPos({ x, y });
     setInitialized(true);
   }, []);
@@ -239,9 +245,9 @@ export default function FloatingAI() {
       const el = containerRef.current;
       const elH = el?.offsetHeight || 60;
 
-      // Clamp pour garder le bouton dans la fenêtre
-      const newX = Math.max(8, Math.min(cx - dragOffset.current.x, window.innerWidth  - 80));
-      const newY = Math.max(8, Math.min(cy - dragOffset.current.y, window.innerHeight - elH - 8));
+      // Clamp pour garder le bouton dans la fenêtre (BTN_SIZE = 56px)
+      const newX = Math.max(8, Math.min(cx - dragOffset.current.x, window.innerWidth  - BTN_SIZE - 8));
+      const newY = Math.max(8, Math.min(cy - dragOffset.current.y, window.innerHeight - BTN_SIZE - 8));
       setPos({ x: newX, y: newY });
     };
 
@@ -436,21 +442,23 @@ export default function FloatingAI() {
     }
   };
 
-  /* ── Calcul position et hauteur du panel ── */
-  const buttonHeight = 56; // h-14 = 56px
+  /* ── Calcul position et dimensions du panel ── */
+  const effectivePanelW = getPanelW(); // Clamp à la largeur d'écran - 16px
+
   const spaceAbove = pos ? pos.y - 16 : window.innerHeight;
-  const spaceBelow = pos ? window.innerHeight - pos.y - buttonHeight - 16 : window.innerHeight;
-  
+  const spaceBelow = pos ? window.innerHeight - pos.y - BTN_SIZE - 16 : window.innerHeight;
+
   // S'ouvre du côté où il y a le plus d'espace
   const showAbove = spaceAbove > spaceBelow;
-  
+
   // Limite la hauteur à l'espace disponible (sans dépasser PANEL_H)
   const availableSpace = showAbove ? spaceAbove : spaceBelow;
-  const actualHeight = Math.min(PANEL_H, Math.max(availableSpace, 200)); // Minimum 200px
+  const actualHeight   = Math.min(PANEL_H, Math.max(availableSpace, 200));
 
   // Décalage horizontal du panel pour rester dans la fenêtre
+  // Négatif si le panel dépasserait à droite, 0 si OK
   const panelLeftOffset = pos
-    ? Math.min(0, window.innerWidth - pos.x - PANEL_W - 8)
+    ? Math.min(0, window.innerWidth - pos.x - effectivePanelW - 8)
     : 0;
 
   if (!initialized || onAIPage) return null;
@@ -474,7 +482,7 @@ export default function FloatingAI() {
           style={{
             position: "absolute",
             left:   panelLeftOffset,
-            width:  PANEL_W,
+            width:  effectivePanelW,
             height: actualHeight,
             ...(showAbove
               ? { bottom: "calc(100% + 12px)" }
@@ -614,9 +622,14 @@ export default function FloatingAI() {
         }`}
         aria-label={isOpen ? "Fermer l'assistant Lia" : "Ouvrir l'assistant Lia"}
       >
-        {/* Halo pulsé — position absolute, n'affecte PAS getBoundingClientRect du bouton */}
+        {/* Halos animés — position absolute, n'affectent PAS getBoundingClientRect */}
         {!isOpen && (
-          <div className="absolute inset-0 rounded-full bg-sky-400/40 animate-pulse pointer-events-none" />
+          <>
+            {/* Anneau ping externe (radar) */}
+            <span className="absolute inset-0 rounded-full bg-sky-400/50 animate-ping pointer-events-none" />
+            {/* Glow pulse interne */}
+            <span className="absolute inset-0 rounded-full bg-sky-400/30 animate-pulse pointer-events-none" />
+          </>
         )}
 
         <div className={`relative z-10 flex items-center justify-center flex-shrink-0 pointer-events-none transition-all duration-300 ${

@@ -59,14 +59,14 @@ export default function Dashboard() {
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-8 flex items-end justify-between">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-bold text-sky-600 uppercase tracking-widest mb-1">{t("overview")}</p>
-          <h2 className="text-3xl font-bold text-slate-900">{t("dashboardTitle")}</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">{t("dashboardTitle")}</h2>
         </div>
         {isFromCache && (
           <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-3 py-1.5 rounded-full border border-amber-200 uppercase tracking-widest animate-pulse">
-            Mode Hors-ligne : Données en cache
+            Cache
           </span>
         )}
       </div>

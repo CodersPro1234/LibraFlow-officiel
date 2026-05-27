@@ -256,35 +256,37 @@ export default function Catalogue() {
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
         <div>
           <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1">{t("library")}</p>
-          <div className="flex items-center gap-4">
-            <h2 className="text-3xl font-bold text-slate-900">{t("catalogue")}</h2>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">{t("catalogue")}</h2>
             {isFromCache && (
               <span className="bg-amber-100 text-amber-700 text-[9px] font-bold px-3 py-1 rounded-full border border-amber-200 uppercase tracking-widest animate-pulse">
-                Données en cache
+                Cache
               </span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {user?.role === "librarian" && selectedIds.length > 0 && (
             <button
               onClick={handleBulkDelete}
-              className="flex items-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm active:scale-95 animate-slide-down"
+              className="flex items-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm active:scale-95 animate-slide-down"
             >
               <Trash2 className="w-4 h-4" />
-              Supprimer ({selectedIds.length})
+              <span className="hidden sm:inline">Supprimer ({selectedIds.length})</span>
+              <span className="sm:hidden">×{selectedIds.length}</span>
             </button>
           )}
           {user?.role === "librarian" && (
             <button
               onClick={() => setShowForm(!showForm)}
-              className="flex items-center gap-2 bg-gradient-to-r from-sky-500 to-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:from-sky-600 hover:to-indigo-700 transition-all shadow-md"
+              className="flex items-center gap-2 bg-gradient-to-r from-sky-500 to-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:from-sky-600 hover:to-indigo-700 transition-all shadow-md"
             >
               <Plus className="w-4 h-4" />
-              {t("addBook")}
+              <span className="hidden sm:inline">{t("addBook")}</span>
+              <span className="sm:hidden">Ajouter</span>
             </button>
           )}
         </div>
@@ -456,15 +458,14 @@ export default function Catalogue() {
 
             return (
               <div key={book._id} onClick={() => setSelectedBook(book)} className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-[0_12px_24px_-4px_rgba(148,163,184,0.18)] hover:-translate-y-1 transition-all duration-300 flex flex-col cursor-pointer relative">
-                {/* ── Couverture grande taille ── */}
-                <div className="relative h-72 overflow-hidden flex-shrink-0 bg-slate-50">
-                  {/* Effet 3D réaliste de dos/tranche de livre sur toutes les couvertures */}
-                  <div className="absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-black/25 via-black/10 to-transparent z-10 pointer-events-none" />
-                  <div className="absolute left-3 top-0 bottom-0 w-[1px] bg-white/10 z-10 pointer-events-none" />
+                {/* ── Couverture ── */}
+                <div className="relative h-52 w-full overflow-hidden flex-shrink-0 bg-slate-100">
+                  {/* Effet tranche de livre (côté gauche) */}
+                  <div className="absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-black/20 via-black/8 to-transparent z-10 pointer-events-none" />
 
-                  {/* Case à cocher personnalisée pour la suppression groupée */}
+                  {/* Case à cocher (librarian) */}
                   {user?.role === "librarian" && (
-                    <div 
+                    <div
                       onClick={(e) => { e.stopPropagation(); handleToggleSelect(book._id); }}
                       className="absolute top-2 left-2 z-20 flex items-center justify-center cursor-pointer"
                     >
@@ -487,7 +488,7 @@ export default function Catalogue() {
                       <img
                         src={book.coverImage}
                         alt={book.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-[1.04] transition-transform duration-500"
                         loading="lazy"
                         onError={(e) => {
                           e.target.style.display = "none";
@@ -516,7 +517,7 @@ export default function Catalogue() {
                       </div>
                     </>
                   ) : (
-                    <div className={`w-full h-full bg-gradient-to-br ${style.bg} flex flex-col justify-between p-4 relative shadow-[inset_15px_0_20px_-5px_rgba(0,0,0,0.35)]`}>
+                    <div className={`absolute inset-0 bg-gradient-to-br ${style.bg} flex flex-col justify-between p-4 shadow-[inset_15px_0_20px_-5px_rgba(0,0,0,0.35)]`}>
                       <div className="flex flex-col items-center mt-2 z-10 w-full px-2">
                         <span className="text-4xl drop-shadow-md filter saturate-120 mb-1">{style.icon}</span>
                         <p className="text-white/60 text-[9px] font-bold text-center uppercase tracking-widest">{book.genre}</p>
@@ -549,52 +550,66 @@ export default function Catalogue() {
                 </div>
 
                 {/* ── Infos ── */}
-                <div className="p-4 flex flex-col flex-1 bg-white">
-                  <p className="text-sm font-bold text-slate-800 leading-snug line-clamp-2 mb-1 group-hover:text-indigo-600 transition-colors duration-200" title={book.title}>{book.title}</p>
-                  <p className="text-xs text-slate-400 font-medium truncate mb-2">{book.author}</p>
-                  <span className={`inline-block text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md ${style.light} ${style.text} w-fit mb-3`}>{book.genre}</span>
+                <div className="p-3 flex flex-col gap-2 bg-white">
 
-                  <div className="flex items-center justify-between text-xs mb-3 mt-auto pt-2 border-t border-slate-50">
-                    <span className="text-slate-400 font-medium">{t("copiesLabel")}</span>
-                    <span className="font-semibold text-slate-700">
-                      <span className={isAvailable ? "text-emerald-600" : "text-rose-500"}>{book.availableCopies}</span>
-                      <span className="text-slate-300"> / {book.totalCopies}</span>
+                  {/* Titre + Auteur */}
+                  <div>
+                    <p
+                      className="text-sm font-extrabold text-slate-900 leading-snug line-clamp-2 group-hover:text-sky-600 transition-colors"
+                      title={book.title}
+                    >
+                      {book.title}
+                    </p>
+                    <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                      {book.author}
+                    </p>
+                  </div>
+
+                  {/* Genre + Exemplaires */}
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md ${style.light} ${style.text}`}>
+                      {book.genre}
+                    </span>
+                    <span className="text-[11px] font-semibold">
+                      <span className={isAvailable ? "text-emerald-600" : "text-rose-500"}>
+                        {book.availableCopies}
+                      </span>
+                      <span className="text-slate-300">/{book.totalCopies}</span>
                     </span>
                   </div>
 
+                  {/* Bouton étudiant */}
                   {user?.role === "student" && (
                     <button
                       onClick={(e) => { e.stopPropagation(); handleBorrow(book); }}
                       disabled={!isAvailable || isBorrowing}
-                      className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-98 ${
+                      className={`w-full py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
                         isAvailable && !isBorrowing
                           ? "bg-gradient-to-r from-sky-500 to-indigo-600 text-white hover:shadow-md hover:brightness-105"
-                          : "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200/50"
+                          : "bg-slate-100 text-slate-400 cursor-not-allowed"
                       }`}
                     >
-                      {isBorrowing ? (
-                        <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> {t("borrowing")}</>
-                      ) : (
-                        <><BookOpen className="w-3.5 h-3.5" /> {isAvailable ? t("borrow") : t("unavailable")}</>
-                      )}
+                      {isBorrowing
+                        ? <><RefreshCw className="w-3 h-3 animate-spin" /> {t("borrowing")}</>
+                        : <><BookOpen className="w-3 h-3" /> {isAvailable ? t("borrow") : t("unavailable")}</>
+                      }
                     </button>
                   )}
 
+                  {/* Boutons librarian */}
                   {user?.role === "librarian" && (
-                    <div className="flex gap-2 w-full mt-auto" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => handleEditClick(book)}
-                        className="flex-1 py-2 rounded-xl text-xs font-extrabold bg-sky-50 text-sky-600 hover:bg-sky-100 hover:text-sky-700 transition-all border border-sky-100/50 flex items-center justify-center gap-1 active:scale-95"
+                        className="flex-1 py-1.5 rounded-lg text-[11px] font-bold bg-sky-50 text-sky-600 hover:bg-sky-100 transition-all flex items-center justify-center gap-1"
                       >
-                        <Pencil className="w-3 h-3" />
-                        Modifier
+                        <Pencil className="w-3 h-3" /> Modifier
                       </button>
                       <button
                         onClick={() => handleDelete(book._id)}
-                        className="flex-1 py-2 rounded-xl text-xs font-extrabold bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-600 transition-all border border-rose-100/50 flex items-center justify-center gap-1 active:scale-95"
+                        className="flex-1 py-1.5 rounded-lg text-[11px] font-bold bg-rose-50 text-rose-500 hover:bg-rose-100 transition-all flex items-center justify-center gap-1"
                       >
-                        <Trash2 className="w-3 h-3" />
-                        Supprimer
+                        <Trash2 className="w-3 h-3" /> Supprimer
                       </button>
                     </div>
                   )}

@@ -22,7 +22,7 @@ router.get('/', protect, async (req, res) => {
         { $limit: 5 },
         { $lookup: { from: 'books', localField: '_id', foreignField: '_id', as: 'book' } },
         { $unwind: '$book' },
-        { $project: { title: '$book.title', author: '$book.author', count: 1 } }
+        { $project: { title: '$book.title', author: '$book.author', coverImage: '$book.coverImage', count: 1 } }
       ]),
       Book.aggregate([
         { $group: { _id: '$genre', count: { $sum: 1 } } },

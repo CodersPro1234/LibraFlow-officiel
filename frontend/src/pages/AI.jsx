@@ -211,7 +211,8 @@ export default function AI() {
   ].filter((tab) => !tab.libOnly || isLibrarian);
 
   const [activeTab,   setActiveTab]   = useState("chat");
-  const [sidebarOpen, setSidebar]     = useState(true);
+  // Sur mobile (< 768px) la sidebar est cachée par défaut
+  const [sidebarOpen, setSidebar]     = useState(() => window.innerWidth >= 768);
 
   /* Conversations */
   const [convList,    setConvList]    = useState([]);
@@ -516,7 +517,7 @@ export default function AI() {
      RENDU
   ══════════════════════════════════ */
   return (
-    <div className="animate-fade-in flex flex-col h-[calc(100vh-4rem)] md:h-screen -mx-6 -my-8 md:-mx-8 md:-my-8">
+    <div className="animate-fade-in flex flex-col h-[calc(100vh-4rem)] md:h-screen -mx-4 -my-4 sm:-mx-6 sm:-my-6 md:-mx-8 md:-my-8">
 
       {/* ── Onglets ── */}
       <div className="flex items-center gap-1 px-4 py-3 bg-white border-b border-slate-200 overflow-x-auto flex-shrink-0">
@@ -546,9 +547,22 @@ export default function AI() {
       {/* ── Corps ── */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
+        {/* ── Backdrop sidebar mobile ── */}
+        {activeTab === "chat" && sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-slate-900/40 z-10 md:hidden"
+            onClick={() => setSidebar(false)}
+          />
+        )}
+
         {/* SIDEBAR conversations */}
         {activeTab === "chat" && (
-          <aside className={`${sidebarOpen ? "w-64" : "w-0"} flex-shrink-0 bg-white border-r border-slate-200 overflow-hidden transition-all duration-300 flex flex-col`}>
+          <aside className={`
+            ${sidebarOpen ? "w-64 translate-x-0" : "w-0 -translate-x-full md:translate-x-0"}
+            flex-shrink-0 bg-white border-r border-slate-200 overflow-hidden transition-all duration-300 flex flex-col
+            md:relative
+            fixed top-0 left-0 h-full z-20 md:z-auto
+          `}>
             <div className="p-3 border-b border-slate-100 flex-shrink-0">
               <button
                 onClick={createConversation}

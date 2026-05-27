@@ -98,39 +98,41 @@ export default function Loans() {
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
         <div>
           <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1">
             {t("gestion")}
           </p>
-          <div className="flex items-center gap-4">
-            <h2 className="text-3xl font-bold text-slate-900">{t("loans")}</h2>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">{t("loans")}</h2>
             {isFromCache && (
               <span className="bg-amber-100 text-amber-700 text-[9px] font-bold px-3 py-1 rounded-full border border-amber-200 uppercase tracking-widest animate-pulse">
-                Données en cache
+                Cache
               </span>
             )}
           </div>
         </div>
 
         {user && user.role === "librarian" && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={function () { setShowScanner(true); }}
-              className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-50 transition-all shadow-sm"
+              className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-50 transition-all shadow-sm"
             >
               <span>📷</span>
-              {t("scanQR")}
+              <span className="hidden sm:inline">{t("scanQR")}</span>
+              <span className="sm:hidden">Scan</span>
             </button>
 
             <button
               onClick={function () { setShowForm(!showForm); }}
-              className="flex items-center gap-2 bg-gradient-to-r from-sky-500 to-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:from-sky-600 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg"
+              className="flex items-center gap-2 bg-gradient-to-r from-sky-500 to-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:from-sky-600 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
               </svg>
-              {t("newLoan")}
+              <span className="hidden sm:inline">{t("newLoan")}</span>
+              <span className="sm:hidden">Nouveau</span>
             </button>
           </div>
         )}

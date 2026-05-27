@@ -99,11 +99,11 @@ export default function Profile() {
       </button>
 
       {/* ── HEADER PROFIL ── */}
-      <div className="bg-gradient-to-r from-sky-500 to-indigo-600 rounded-3xl p-8 text-white mb-6 relative overflow-hidden">
+      <div className="bg-gradient-to-r from-sky-500 to-indigo-600 rounded-3xl p-5 sm:p-8 text-white mb-6 relative overflow-hidden">
         <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/5" />
         <div className="absolute bottom-0 right-4 w-24 h-24 rounded-full bg-white/5" />
 
-        <div className="relative z-10 flex items-center gap-6">
+        <div className="relative z-10 flex items-center gap-4">
           {/* Avatar avec téléversement */}
           <label 
             htmlFor="avatar-upload" 

@@ -16,23 +16,23 @@ function BookCard({ book, onBorrow, borrowingId }) {
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-card overflow-hidden group hover:shadow-hover transition-all flex flex-col">
-      {/* Couverture */}
-      <div className="relative h-44 overflow-hidden bg-slate-100">
+      {/* Couverture — ratio 2:3 */}
+      <div className="relative aspect-[2/3] w-full overflow-hidden bg-slate-100">
         {book.coverImage ? (
           <>
             <img
               src={book.coverImage}
               alt={book.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-[1.04] transition-transform duration-500"
               loading="lazy"
               onError={(e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }}
             />
-            <div className="hidden w-full h-full items-center justify-center bg-gradient-to-br from-sky-100 to-indigo-100">
+            <div className="hidden absolute inset-0 items-center justify-center bg-gradient-to-br from-sky-50 to-indigo-50">
               <BookOpen className="w-12 h-12 text-sky-300" />
             </div>
           </>
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-sky-100 to-indigo-100">
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-sky-50 to-indigo-50">
             <BookOpen className="w-12 h-12 text-sky-300" />
           </div>
         )}
@@ -278,12 +278,12 @@ export default function StudentHome() {
           <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide lg:grid lg:grid-cols-4 lg:overflow-visible">
             {stats.topBooks.slice(0, 8).map((book, i) => (
               <div key={i} className="min-w-[160px] lg:min-w-0 bg-white rounded-2xl border border-slate-100 shadow-card overflow-hidden group hover:shadow-hover transition-all flex-shrink-0 lg:flex-shrink">
-                {/* Rang */}
-                <div className="relative h-36 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
+                {/* Couverture — ratio 2:3 */}
+                <div className="relative aspect-[2/3] w-full overflow-hidden bg-slate-100">
                   {book.coverImage ? (
-                    <img src={book.coverImage} alt={book.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                    <img src={book.coverImage} alt={book.title} className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-[1.04] transition-transform duration-500" loading="lazy" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
                       <BookOpen className="w-10 h-10 text-slate-300" />
                     </div>
                   )}
