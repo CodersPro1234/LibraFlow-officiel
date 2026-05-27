@@ -2,6 +2,7 @@ const express      = require("express");
 const router       = express.Router();
 const { body, validationResult } = require("express-validator");
 const Conversation = require("../models/Conversation");
+const User         = require("../models/User");
 const { protect, librarianOnly } = require("../middleware/auth");
 
 // ── GET /api/conversations — mes conversations ──
@@ -29,12 +30,15 @@ router.get("/", protect, async (req, res) => {
   }
 });
 
-// ── GET /api/conversations/admin — toutes les conv (librarian) ──
+// ── GET /api/conversations/admin — conversations étudiants uniquement ──
 router.get("/admin", protect, librarianOnly, async (req, res) => {
   try {
+    // Exclure les conversations des bibliothécaires (admins)
+    const librarianIds = await User.find({ role: "librarian" }).distinct("_id");
+
     const convs = await Conversation
-      .find()
-      .populate("user", "name email studentId")
+      .find({ user: { $nin: librarianIds } })
+      .populate("user", "name email studentId role")
       .select("title createdAt updatedAt messages user")
       .sort({ updatedAt: -1 })
       .lean();

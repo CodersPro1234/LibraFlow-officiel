@@ -148,4 +148,24 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
   console.log(`🌐 Frontend autorisé : ${FRONTEND_URL}`);
+
+  // ── Scheduler : expiration auto des réservations toutes les 15 minutes ──
+  const { expireOverdueReservations } = require('./routes/loans');
+  const EXPIRE_INTERVAL = 15 * 60 * 1000; // 15 min
+
+  const runExpiry = async () => {
+    try {
+      const count = await expireOverdueReservations(io);
+      if (count > 0) {
+        console.log(`⏰ [Scheduler] ${count} réservation(s) expirée(s) — livres remis en stock.`);
+      }
+    } catch (err) {
+      console.error('⚠️ [Scheduler] Erreur expiration réservations :', err.message);
+    }
+  };
+
+  // Lancer une première fois au démarrage, puis toutes les 15 min
+  setTimeout(runExpiry, 5000); // attendre 5s que MongoDB soit prêt
+  setInterval(runExpiry, EXPIRE_INTERVAL);
+  console.log(`⏰ Scheduler réservations actif (vérification toutes les 15 min)`);
 });

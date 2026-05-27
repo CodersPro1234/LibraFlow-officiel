@@ -177,8 +177,20 @@ router.put('/:id', protect, librarianOnly, bookValidation, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ message: errors.array()[0].msg });
   try {
-    const book = await Book.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-    if (!book) return res.status(404).json({ message: 'Livre introuvable' });
+    // Récupérer le livre actuel pour calculer le delta d'exemplaires
+    const current = await Book.findById(req.params.id);
+    if (!current) return res.status(404).json({ message: 'Livre introuvable' });
+
+    const newTotal  = req.body.totalCopies ?? current.totalCopies;
+    const delta     = newTotal - current.totalCopies;
+    // availableCopies = ancienne valeur + delta, clampé entre 0 et newTotal
+    const newAvail  = Math.max(0, Math.min(current.availableCopies + delta, newTotal));
+
+    const book = await Book.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body, availableCopies: newAvail },
+      { new: true, runValidators: true }
+    );
     res.json(book);
   } catch (err) {
     res.status(400).json({ message: err.message });

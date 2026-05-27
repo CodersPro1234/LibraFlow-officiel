@@ -130,7 +130,7 @@ export default function QRScanner({ onClose, onSuccess }) {
     setLoading(true);
     try {
       const res = await api.put(`/loans/${loanData._id}/return`);
-      generateReturnReceiptPDF(res.data); // générer le reçu PDF automatiquement
+      await generateReturnReceiptPDF(res.data); // générer le reçu PDF automatiquement
       setActionDone(true);
       if (onSuccess) onSuccess("returned");
     } catch (err) {
@@ -141,17 +141,19 @@ export default function QRScanner({ onClose, onSuccess }) {
   };
 
   const statusColor = {
-    pending: "bg-amber-100 text-amber-700 border-amber-200",
-    active: "bg-sky-100 text-sky-700 border-sky-200",
-    late: "bg-red-100 text-red-700 border-red-200",
+    reserved: "bg-amber-100 text-amber-700 border-amber-200",
+    active:   "bg-sky-100 text-sky-700 border-sky-200",
+    late:     "bg-red-100 text-red-700 border-red-200",
     returned: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    expired:  "bg-slate-100 text-slate-500 border-slate-200",
   };
 
   const statusLabel = {
-    pending: "En attente de confirmation",
-    active: "Emprunt actif",
-    late: "En retard",
+    reserved: "En attente de récupération",
+    active:   "Emprunt actif",
+    late:     "En retard",
     returned: "Déjà retourné",
+    expired:  "Réservation expirée",
   };
 
   return (
@@ -310,13 +312,21 @@ export default function QRScanner({ onClose, onSuccess }) {
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-400">Date limite</p>
+                    <p className="text-xs text-slate-400">
+                      {loanData.status === "reserved" ? "Récupérer avant" : "Date limite retour"}
+                    </p>
                     <p className="text-sm font-medium text-slate-700">
-                      {new Date(loanData.dueDate).toLocaleDateString("fr-FR")}
+                      {loanData.status === "reserved"
+                        ? (loanData.pickupDeadline
+                            ? new Date(loanData.pickupDeadline).toLocaleDateString("fr-FR")
+                            : "24h à venir")
+                        : (loanData.dueDate
+                            ? new Date(loanData.dueDate).toLocaleDateString("fr-FR")
+                            : "—")}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-400">Demandé le</p>
+                    <p className="text-xs text-slate-400">Réservé le</p>
                     <p className="text-sm font-medium text-slate-700">
                       {new Date(loanData.createdAt).toLocaleDateString("fr-FR")}
                     </p>
@@ -331,14 +341,22 @@ export default function QRScanner({ onClose, onSuccess }) {
               )}
 
               {/* Actions selon le statut */}
-              {loanData.status === "pending" && (
+              {loanData.status === "reserved" && (
                 <button
                   onClick={handleConfirmLoan}
                   disabled={loading}
                   className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-3.5 rounded-xl text-sm font-semibold disabled:opacity-50 transition-all hover:from-emerald-600 hover:to-green-700 flex items-center justify-center gap-2 shadow-md"
                 >
-                  {loading ? "Confirmation..." : "✓  Confirmer l'emprunt"}
+                  {loading ? "Confirmation..." : "✓  Confirmer la remise du livre"}
                 </button>
+              )}
+              {loanData.status === "expired" && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+                  <p className="text-slate-600 font-semibold text-sm">⏰ Réservation expirée</p>
+                  <p className="text-slate-500 text-xs mt-1">
+                    Le délai de 24h est dépassé. Le livre a été remis en rayon.
+                  </p>
+                </div>
               )}
 
               {(loanData.status === "active" || loanData.status === "late") && (

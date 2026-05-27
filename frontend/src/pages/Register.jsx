@@ -7,7 +7,7 @@ import { useToast } from "../hooks/useToast";
 import logo from "../assets/logo_LibraFlow.png";
 
 export default function Register() {
-  const [form, setForm] = useState({ name: "", email: "", password: "", role: "student", studentId: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", role: "student", studentId: "", phone: "" });
   const [loading, setLoading] = useState(false);
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -87,6 +87,13 @@ export default function Register() {
               className="w-full px-4 py-3 rounded-xl bg-slate-100 border-none text-slate-800 text-sm outline-none focus:ring-2 focus:ring-sky-300 transition-all placeholder:text-slate-400"
               placeholder="Mot de passe (min. 6 caractères)"
               required
+            />
+            <input
+              type="tel"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              className="w-full px-4 py-3 rounded-xl bg-slate-100 border-none text-slate-800 text-sm outline-none focus:ring-2 focus:ring-sky-300 transition-all placeholder:text-slate-400"
+              placeholder="Numéro de téléphone"
             />
             <input
               type="text"

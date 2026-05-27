@@ -5,7 +5,7 @@ import { useLanguage } from "../context/LanguageContext";
 import { useToast } from "../hooks/useToast";
 import { generateLoanPDF } from "../utils/generatePDF";
 import ScannerModal from "../components/ScannerModal";
-import { Search, Plus, Trash2, CheckCircle2, XCircle, BookOpen, Camera, RefreshCw, X, Info, ImagePlus, Pencil } from "lucide-react";
+import { Search, Plus, Trash2, CheckCircle2, XCircle, BookOpen, Camera, RefreshCw, X, Info, ImagePlus, Pencil, Sparkles } from "lucide-react";
 
 const GENRES = ["Informatique", "Mathematiques", "Sciences", "Gestion", "Litterature", "Autre"];
 
@@ -47,7 +47,7 @@ export default function Catalogue() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const LIMIT = 20;
+  const LIMIT = 24;
 
   const [isFromCache, setIsFromCache] = useState(false);
 
@@ -245,8 +245,17 @@ export default function Catalogue() {
     }
   };
 
+  // Calcule combien de cartes fantômes ajouter pour compléter la dernière rangée
+  const getCols = () => {
+    if (typeof window === "undefined") return 3;
+    if (window.innerWidth >= 1280) return 4;
+    if (window.innerWidth >= 1024) return 3;
+    if (window.innerWidth >= 640)  return 2;
+    return 1;
+  };
+
   return (
-    <div className="animate-fade-in relative">
+    <div className="animate-fade-in relative flex flex-col" style={{ minHeight: "calc(100dvh - 6rem)" }}>
       <ScannerModal
         isOpen={showIsbnScanner}
         onClose={() => setShowIsbnScanner(false)}
@@ -435,6 +444,28 @@ export default function Catalogue() {
         </p>
       )}
 
+      {/* ── Bandeau CTA ── */}
+      {!loading && (
+        <div className="mb-5 rounded-2xl bg-gradient-to-r from-sky-50 to-indigo-50 border border-sky-100 p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+              <Sparkles className="w-4.5 h-4.5 text-sky-500" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-800">Vous cherchez un livre spécifique ?</p>
+              <p className="text-xs text-slate-500 mt-0.5">Lia, notre IA, peut vous recommander des livres en un instant.</p>
+            </div>
+          </div>
+          <a
+            href="/app/ai"
+            className="flex-shrink-0 flex items-center gap-2 bg-gradient-to-r from-sky-500 to-indigo-600 text-white text-xs font-bold px-5 py-2.5 rounded-xl hover:shadow-md transition-all"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Demander à Lia
+          </a>
+        </div>
+      )}
+
       {/* ── GRILLE DE CARTES ── */}
       {loading ? (
         <div className="flex items-center justify-center h-64 gap-3 text-slate-400">
@@ -450,14 +481,29 @@ export default function Catalogue() {
           <p className="text-sm">{t("noBooks")}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-5">
           {books.map((book) => {
             const style = getStyle(book.genre);
-            const isAvailable = book.availableCopies > 0;
+            // Sécurité affichage : availableCopies ne peut pas dépasser totalCopies
+            const safeAvail  = Math.min(book.availableCopies, book.totalCopies);
+            const isAvailable = safeAvail > 0;
             const isBorrowing = borrowingId === book._id;
 
+            // ── Remplissage dynamique de la dernière rangée ──
+            // Calcule le nombre de colonnes actives selon la largeur d'écran
+            // On utilise gridColumn inline pour le cas de la dernière rangée incomplète
+            const cols = window.innerWidth >= 1280 ? 4 : window.innerWidth >= 640 ? 3 : 2;
+            const remainder = books.length % cols;
+            const isLastIncomplete = remainder !== 0 && index >= books.length - remainder;
+            const colSpan = isLastIncomplete ? `span ${Math.floor(cols / remainder)}` : undefined;
+
             return (
-              <div key={book._id} onClick={() => setSelectedBook(book)} className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-[0_12px_24px_-4px_rgba(148,163,184,0.18)] hover:-translate-y-1 transition-all duration-300 flex flex-col cursor-pointer relative">
+              <div
+                key={book._id}
+                style={colSpan ? { gridColumn: colSpan } : undefined}
+                onClick={() => setSelectedBook(book)}
+                className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-[0_12px_24px_-4px_rgba(148,163,184,0.18)] hover:-translate-y-1 transition-all duration-300 flex flex-col cursor-pointer relative"
+              >
                 {/* ── Couverture ── */}
                 <div className="relative h-52 w-full overflow-hidden flex-shrink-0 bg-slate-100">
                   {/* Effet tranche de livre (côté gauche) */}
@@ -572,7 +618,7 @@ export default function Catalogue() {
                     </span>
                     <span className="text-[11px] font-semibold">
                       <span className={isAvailable ? "text-emerald-600" : "text-rose-500"}>
-                        {book.availableCopies}
+                        {safeAvail}
                       </span>
                       <span className="text-slate-300">/{book.totalCopies}</span>
                     </span>
@@ -590,8 +636,8 @@ export default function Catalogue() {
                       }`}
                     >
                       {isBorrowing
-                        ? <><RefreshCw className="w-3 h-3 animate-spin" /> {t("borrowing")}</>
-                        : <><BookOpen className="w-3 h-3" /> {isAvailable ? t("borrow") : t("unavailable")}</>
+                        ? <><RefreshCw className="w-3 h-3 animate-spin" /> Réservation...</>
+                        : <><BookOpen className="w-3 h-3" /> {isAvailable ? "Réserver" : "Indisponible"}</>
                       }
                     </button>
                   )}
@@ -617,8 +663,30 @@ export default function Catalogue() {
               </div>
             );
           })}
+
+          {/* ── Cartes fantômes pour compléter la dernière rangée ── */}
+          {Array.from({ length: (4 - (books.length % 4)) % 4 }).map((_, i) => (
+            <div
+              key={`ghost-${i}`}
+              className="hidden xl:flex rounded-2xl border-2 border-dashed border-slate-100 items-center justify-center text-slate-200 min-h-[300px] hover:border-sky-100 hover:text-sky-200 transition-colors cursor-default"
+              aria-hidden="true"
+            >
+              <BookOpen className="w-10 h-10 opacity-40" />
+            </div>
+          ))}
+          {Array.from({ length: (3 - (books.length % 3)) % 3 }).map((_, i) => (
+            <div
+              key={`ghost-sm-${i}`}
+              className="hidden sm:flex xl:hidden rounded-2xl border-2 border-dashed border-slate-100 items-center justify-center text-slate-200 min-h-[300px] hover:border-sky-100 hover:text-sky-200 transition-colors cursor-default"
+              aria-hidden="true"
+            >
+              <BookOpen className="w-10 h-10 opacity-40" />
+            </div>
+          ))}
+
         </div>
       )}
+
       {/* ── PAGINATION ── */}
       {!loading && totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 mt-8">
@@ -724,7 +792,7 @@ export default function Catalogue() {
                     className="px-6 py-3 bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg disabled:opacity-50 transition-all flex items-center gap-2"
                   >
                     <BookOpen className="w-4 h-4" />
-                    {selectedBook.availableCopies > 0 ? t("borrow") : t("unavailable")}
+                    {selectedBook.availableCopies > 0 ? "Réserver" : "Indisponible"}
                   </button>
                 )}
                 {user?.role === "librarian" && (

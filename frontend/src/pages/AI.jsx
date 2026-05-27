@@ -74,6 +74,112 @@ function ConvItem({ conv, isActive, onSelect, onDelete }) {
   );
 }
 
+/* ──────────────────────────────────
+   Formateur de texte IA (markdown-lite)
+────────────────────────────────── */
+function renderInline(text, baseKey = 0) {
+  const parts = [];
+  const regex = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+  let lastIndex = 0;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
+    const chunk = match[0];
+    if (chunk.startsWith("**")) {
+      parts.push(<strong key={`${baseKey}-b-${match.index}`} className="font-semibold">{chunk.slice(2, -2)}</strong>);
+    } else if (chunk.startsWith("`")) {
+      parts.push(<code key={`${baseKey}-c-${match.index}`} className="bg-slate-100 text-sky-700 px-1 py-0.5 rounded text-xs font-mono">{chunk.slice(1, -1)}</code>);
+    }
+    lastIndex = match.index + chunk.length;
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return parts.length === 0 ? text : parts;
+}
+
+function FormattedContent({ content }) {
+  if (!content) return null;
+  const lines = content.split("\n");
+  const result = [];
+  let listItems = [];
+  let listType = null; // "ul" | "ol"
+
+  const flushList = (key) => {
+    if (!listItems.length) return;
+    if (listType === "ol") {
+      result.push(
+        <ol key={`ol-${key}`} className="list-decimal list-inside space-y-0.5 my-1.5 ml-1 text-sm leading-relaxed">
+          {listItems}
+        </ol>
+      );
+    } else {
+      result.push(
+        <ul key={`ul-${key}`} className="space-y-0.5 my-1.5 ml-1">
+          {listItems}
+        </ul>
+      );
+    }
+    listItems = [];
+    listType = null;
+  };
+
+  lines.forEach((line, i) => {
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      flushList(i);
+      return;
+    }
+
+    // Separator ═══ / --- / ===
+    if (/^[═─=\-]{3,}$/.test(trimmed)) {
+      flushList(i);
+      result.push(<hr key={i} className="border-slate-200 my-2" />);
+      return;
+    }
+
+    // Markdown header ### or ##
+    const headerMatch = trimmed.match(/^#{1,3}\s+(.+)$/);
+    if (headerMatch) {
+      flushList(i);
+      result.push(
+        <p key={i} className="font-bold text-slate-900 text-sm mt-2 mb-0.5">{renderInline(headerMatch[1], i)}</p>
+      );
+      return;
+    }
+
+    // Numbered list  1. 2.
+    const olMatch = trimmed.match(/^(\d+)[.)]\s+(.+)$/);
+    if (olMatch) {
+      if (listType !== "ol") { flushList(i); listType = "ol"; }
+      listItems.push(
+        <li key={i} className="text-sm leading-relaxed">{renderInline(olMatch[2], i)}</li>
+      );
+      return;
+    }
+
+    // Bullet list  * - •
+    const ulMatch = trimmed.match(/^[*\-•]\s+(.+)$/);
+    if (ulMatch) {
+      if (listType !== "ul") { flushList(i); listType = "ul"; }
+      listItems.push(
+        <li key={i} className="flex gap-1.5 items-start text-sm leading-relaxed">
+          <span className="text-sky-400 mt-0.5 flex-shrink-0 select-none">•</span>
+          <span>{renderInline(ulMatch[1], i)}</span>
+        </li>
+      );
+      return;
+    }
+
+    flushList(i);
+    result.push(
+      <p key={i} className="text-sm leading-relaxed">{renderInline(trimmed, i)}</p>
+    );
+  });
+
+  flushList("end");
+  return <div className="space-y-1">{result}</div>;
+}
+
 function ChatBubble({ msg, onSpeak, onEdit }) {
   const isUser = msg.role === "user";
   const [editing, setEditing] = useState(false);
@@ -109,7 +215,7 @@ function ChatBubble({ msg, onSpeak, onEdit }) {
       <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${isUser ? "bg-indigo-600" : "bg-gradient-to-br from-sky-500 to-indigo-600"}`}>
         {isUser ? <User className="w-3.5 h-3.5 text-white" /> : <Bot className="w-3.5 h-3.5 text-white" />}
       </div>
-      <div className="max-w-[75%]">
+      <div className={isUser ? "max-w-[70%]" : "max-w-[82%]"}>
         {/* Bulle message */}
         {editing ? (
           <div className="flex flex-col gap-2">
@@ -142,12 +248,12 @@ function ChatBubble({ msg, onSpeak, onEdit }) {
             </div>
           </div>
         ) : (
-          <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
+          <div className={`px-4 py-3 rounded-2xl shadow-sm ${
             isUser
-              ? "bg-indigo-600 text-white rounded-tr-sm"
+              ? "bg-indigo-600 text-white rounded-tr-sm text-sm leading-relaxed"
               : "bg-white border border-slate-100 text-slate-800 rounded-tl-sm"
           }`}>
-            {msg.content}
+            {isUser ? msg.content : <FormattedContent content={msg.content} />}
           </div>
         )}
 
@@ -730,7 +836,7 @@ export default function AI() {
                       <Volume2 className="w-4 h-4 text-sky-500" />
                     </button>
                   </div>
-                  <p className="text-slate-700 text-sm leading-relaxed">{summary}</p>
+                  <div className="text-slate-700"><FormattedContent content={summary} /></div>
                 </div>
               )}
             </div>
@@ -801,7 +907,7 @@ export default function AI() {
                       <Volume2 className="w-4 h-4 text-indigo-500" />
                     </button>
                   </div>
-                  <p className="text-slate-700 text-sm leading-relaxed">{statSum}</p>
+                  <div className="text-slate-700"><FormattedContent content={statSum} /></div>
                 </div>
               )}
             </div>
@@ -866,12 +972,15 @@ export default function AI() {
                                     }`}>
                                       {isUser ? (conv.user?.name?.charAt(0).toUpperCase() || "U") : "L"}
                                     </div>
-                                    <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
+                                    <div className={`rounded-2xl px-3 py-2 ${
                                       isUser
-                                        ? "bg-indigo-600 text-white rounded-tr-sm"
-                                        : "bg-slate-100 text-slate-800 rounded-tl-sm"
+                                        ? "max-w-[70%] bg-indigo-600 text-white rounded-tr-sm text-xs leading-relaxed"
+                                        : "max-w-[80%] bg-slate-100 text-slate-800 rounded-tl-sm"
                                     }`}>
-                                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                                      {isUser
+                                        ? <p className="whitespace-pre-wrap">{msg.content}</p>
+                                        : <div className="text-slate-700"><FormattedContent content={msg.content} /></div>
+                                      }
                                       {msg.timestamp && (
                                         <p className={`text-[8px] mt-1 text-right ${isUser ? "text-indigo-200" : "text-slate-400"}`}>
                                           {msg.timestamp}

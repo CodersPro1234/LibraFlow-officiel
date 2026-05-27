@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
   role: { type: String, enum: ['student', 'librarian'], default: 'student' },
   studentId: { type: String, unique: true, sparse: true, trim: true },
   profileImage: { type: String, default: "" },
+  phone: { type: String, default: "" },
   points: { type: Number, default: 0 },
   badges: [{
     name: String,

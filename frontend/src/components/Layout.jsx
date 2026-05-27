@@ -75,45 +75,86 @@ export default function Layout() {
     navigate("/login");
   };
 
-  const typeColor = (type) => {
-    if (type === "badge")   return "bg-amber-50 border-amber-200";
-    if (type === "success") return "bg-emerald-50 border-emerald-200";
-    if (type === "warning") return "bg-orange-50 border-orange-200";
-    return "bg-slate-50 border-slate-100";
+  const typeLeftBorder = (type) => {
+    if (type === "badge")   return "border-l-amber-400";
+    if (type === "success") return "border-l-emerald-400";
+    if (type === "warning") return "border-l-orange-400";
+    return "border-l-slate-200";
   };
 
   const TypeIcon = ({ type }) => {
-    const cls = "w-4 h-4 flex-shrink-0 mt-0.5";
+    const cls = "w-4 h-4 flex-shrink-0";
     if (type === "badge")   return <Trophy        className={`${cls} text-amber-500`} />;
     if (type === "success") return <CheckCircle2  className={`${cls} text-emerald-500`} />;
     if (type === "warning") return <AlertTriangle className={`${cls} text-orange-500`} />;
-    return <Info className={`${cls} text-slate-400`} />;
+    return <Info className={`${cls} text-sky-400`} />;
   };
 
   // ── Shared notifications dropdown
-  const NotifDropdown = () => (
-    <div className="absolute right-0 top-10 z-50 w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-        <p className="font-semibold text-slate-800 text-sm">Notifications</p>
+  // mobile=true  → fixed sous le header mobile (left-3 right-3 top-16)
+  // mobile=false → fixed à droite de la sidebar (left-[268px] top-[52px])
+  const NotifDropdown = ({ mobile = false }) => (
+    <div className={[
+      "z-[200] bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden",
+      mobile
+        ? "fixed top-16 left-3 right-3"           // Mobile : pleine largeur sous le header
+        : "fixed left-[268px] top-[52px] w-80",   // Desktop : à droite de la sidebar
+    ].join(" ")}>
+
+      {/* Header du dropdown */}
+      <div className="px-4 py-3 bg-gradient-to-r from-sky-50 to-slate-50 border-b border-slate-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Bell className="w-4 h-4 text-sky-500" />
+          <p className="font-bold text-slate-800 text-sm">Notifications</p>
+          {unreadCount > 0 && (
+            <span className="bg-red-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+              {unreadCount}
+            </span>
+          )}
+        </div>
         {unreadCount > 0 && (
-          <button onClick={handleMarkRead} className="text-xs text-sky-500 hover:text-sky-700 font-medium">
-            Tout marquer lu
+          <button
+            onClick={handleMarkRead}
+            className="text-xs text-sky-500 hover:text-sky-700 font-semibold transition-colors"
+          >
+            Tout lire
           </button>
         )}
       </div>
+
+      {/* Liste */}
       <div className="max-h-72 overflow-y-auto divide-y divide-slate-50">
         {notifications.length === 0 ? (
-          <p className="text-center text-slate-400 text-xs py-6">Aucune notification</p>
+          <div className="flex flex-col items-center gap-2 py-8 text-slate-400">
+            <Bell className="w-7 h-7 opacity-25" />
+            <p className="text-xs font-medium">Aucune notification</p>
+          </div>
         ) : (
           notifications.map((n) => (
             <div
               key={n._id || n.title}
-              className={`px-4 py-3 flex gap-3 items-start border ${typeColor(n.type)} ${!n.isRead ? "font-semibold" : "opacity-70"}`}
+              className={[
+                "px-4 py-3 flex gap-3 items-start border-l-4 transition-colors hover:bg-slate-50",
+                typeLeftBorder(n.type),
+                !n.isRead ? "bg-white" : "bg-slate-50/60",
+              ].join(" ")}
             >
-              <TypeIcon type={n.type} />
-              <div>
-                <p className="text-xs text-slate-800">{n.title}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{n.message}</p>
+              <div className="flex-shrink-0 mt-0.5">
+                <TypeIcon type={n.type} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <p className={[
+                    "text-xs leading-snug truncate",
+                    !n.isRead ? "font-bold text-slate-900" : "font-medium text-slate-500",
+                  ].join(" ")}>
+                    {n.title}
+                  </p>
+                  {!n.isRead && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-500 flex-shrink-0" />
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">{n.message}</p>
               </div>
             </div>
           ))
@@ -157,7 +198,7 @@ export default function Layout() {
                 </span>
               )}
             </button>
-            {showNotifs && <NotifDropdown />}
+            {showNotifs && <NotifDropdown mobile={true} />}
           </div>
 
           <button
@@ -206,7 +247,7 @@ export default function Layout() {
                   </span>
                 )}
               </button>
-              {showNotifs && <NotifDropdown />}
+              {showNotifs && <NotifDropdown mobile={false} />}
             </div>
           </div>
 

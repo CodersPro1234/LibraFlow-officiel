@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -11,6 +11,7 @@ export default function Loans() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const toast = useToast();
+  const location = useLocation();
   const [loans, setLoans] = useState([]);
   const [books, setBooks] = useState([]);
   const [users, setUsers] = useState([]);
@@ -19,6 +20,8 @@ export default function Loans() {
   const [form, setForm] = useState({ userId: "", bookId: "" });
   const [loading, setLoading] = useState(true);
   const [isFromCache, setIsFromCache] = useState(false);
+  // Filtre statut — initialisé depuis location.state (ex: clic carte dashboard)
+  const [statusFilter, setStatusFilter] = useState(location.state?.filter || "all");
   const navigate = useNavigate();
   // Ref pour éviter le double toast causé par React.StrictMode en développement
   // (StrictMode exécute chaque useEffect 2 fois pour détecter les side effects)
@@ -82,17 +85,41 @@ export default function Loans() {
   };
 
   const statusColor = function (status) {
-    if (status === "returned") return "badge-success";
-    if (status === "late") return "badge-danger";
-    if (status === "pending") return "badge-warning";
+    if (status === "returned")  return "badge-success";
+    if (status === "late")      return "badge-danger";
+    if (status === "expired")   return "badge-danger";
+    if (status === "cancelled") return "badge-secondary";
+    if (status === "reserved" || status === "pending") return "badge-warning";
+    if (status === "active")    return "badge-info";
     return "badge-warning";
   };
 
   const statusLabel = function (status) {
-    if (status === "returned") return t("returned");
-    if (status === "late") return t("late");
-    if (status === "pending") return t("pending") || "En attente";
-    return t("active");
+    if (status === "returned")  return "Retourné";
+    if (status === "late")      return "En retard";
+    if (status === "expired")   return "Expiré";
+    if (status === "cancelled") return "Annulé";
+    if (status === "active")    return "Actif";
+    return "En attente"; // reserved + pending + fallback
+  };
+
+  const handleCancel = async function (loanId) {
+    if (!window.confirm("Annuler cette réservation ? Le livre sera remis en stock.")) return;
+    try {
+      await api.delete(`/loans/${loanId}`);
+      toast.success("Réservation annulée avec succès");
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.message || t("errorOccurred"));
+    }
+  };
+
+  // Affiche la date de façon sécurisée (évite epoch 01/01/1970)
+  const safeDate = function (dateVal, fallback = "À confirmer") {
+    if (!dateVal) return fallback;
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime()) || d.getFullYear() < 2000) return fallback;
+    return d.toLocaleDateString("fr-FR");
   };
 
   return (
@@ -216,6 +243,37 @@ export default function Loans() {
         </form>
       )}
 
+      {/* ── ONGLETS FILTRE STATUT ── */}
+      {!loading && loans.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 mb-2">
+          {[
+            { key: "all",       label: "Tous",         count: loans.length },
+            { key: "reserved",  label: "En attente",   count: loans.filter(l => l.status === "reserved").length },
+            { key: "active",    label: "Actifs",        count: loans.filter(l => l.status === "active" || l.status === "late").length },
+            { key: "returned",  label: "Retournés",    count: loans.filter(l => l.status === "returned").length },
+            { key: "expired",   label: "Expirés",      count: loans.filter(l => l.status === "expired").length },
+            { key: "cancelled", label: "Annulés",      count: loans.filter(l => l.status === "cancelled").length },
+          ].filter(tab => tab.key === "all" || tab.count > 0).map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setStatusFilter(tab.key)}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex-shrink-0 ${
+                statusFilter === tab.key
+                  ? "bg-gradient-to-r from-sky-500 to-indigo-600 text-white shadow-md"
+                  : "bg-white border border-slate-200 text-slate-500 hover:border-sky-300 hover:text-sky-600"
+              }`}
+            >
+              {tab.label}
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                statusFilter === tab.key ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500"
+              }`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* ── ÉTAT CHARGEMENT / VIDE ── */}
       {loading && (
         <div className="flex items-center justify-center h-40 gap-2 text-slate-400">
@@ -235,11 +293,25 @@ export default function Loans() {
       )}
 
       {/* ── MOBILE : Cards ── */}
-      {!loading && loans.length > 0 && (
-        <>
+      {!loading && loans.length > 0 && (() => {
+        // Filtrage local selon l'onglet actif
+        const filtered = statusFilter === "all"
+          ? loans
+          : statusFilter === "active"
+          ? loans.filter(l => l.status === "active" || l.status === "late")
+          : loans.filter(l => l.status === statusFilter);
+        const displayLoans = filtered;
+        return <>
+          {/* Message vide si filtre actif */}
+          {displayLoans.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-32 text-slate-400 gap-2">
+              <span className="text-3xl">🔍</span>
+              <p className="text-sm">Aucun emprunt dans cette catégorie</p>
+            </div>
+          )}
           {/* Vue cards (mobile) */}
           <div className="sm:hidden space-y-3">
-            {loans.map((loan) => (
+            {displayLoans.map((loan) => (
               <div key={loan._id} className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div>
@@ -252,43 +324,72 @@ export default function Loans() {
                 </div>
                 <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
                   <span className="font-medium text-slate-700">
-                    {user?.role === "librarian" ? loan.user?.name : "Date limite :"}
+                    {user?.role === "librarian"
+                      ? loan.user?.name
+                      : loan.status === "reserved" ? "⏰ Récupérer avant :" : "Date limite :"}
                   </span>
-                  <span className="font-mono">{new Date(loan.dueDate).toLocaleDateString("fr-FR")}</span>
+                  <span className={`font-mono ${loan.status === "reserved" ? "text-amber-600 font-semibold" : ""}`}>
+                    {loan.status === "reserved"
+                      ? safeDate(loan.pickupDeadline, "24h à venir")
+                      : loan.status === "expired"
+                      ? "Expiré"
+                      : safeDate(loan.dueDate)}
+                  </span>
                 </div>
                 {/* Actions mobile */}
-                {user?.role === "librarian" && loan.status !== "returned" && (
+                {user?.role === "librarian" && loan.status !== "returned" && loan.status !== "expired" && (
                   <button
                     onClick={() => setShowScanner(true)}
                     className={`w-full py-2 rounded-lg text-xs font-semibold transition-colors ${
-                      loan.status === "pending"
+                      loan.status === "reserved" || loan.status === "pending"
                         ? "bg-amber-50 text-amber-700 hover:bg-amber-100"
                         : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                     }`}
                   >
-                    📷 {loan.status === "pending" ? t("confirmScan") : t("returnScan")}
+                    📷 {(loan.status === "reserved" || loan.status === "pending") ? "Confirmer remise" : "Scanner retour"}
                   </button>
                 )}
-                {user?.role === "student" && (loan.status === "pending" || loan.status === "active" || loan.status === "late") && (
+                {user?.role === "student" && loan.status === "reserved" && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        try {
+                          const qrRes = await api.get(`/loans/${loan._id}/qrcode`);
+                          navigate("/app/ticket", { state: { type: "reservation", loan, qrCode: qrRes.data.qrCode } });
+                        } catch {
+                          toast.error(t("errorOccurred"));
+                        }
+                      }}
+                      className="flex-1 py-2 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors"
+                    >
+                      📥 Bon de réservation
+                    </button>
+                    <button
+                      onClick={() => handleCancel(loan._id)}
+                      className="py-2 px-3 rounded-lg text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                    >
+                      ✕ Annuler
+                    </button>
+                  </div>
+                )}
+                {user?.role === "student" && (loan.status === "active" || loan.status === "late") && (
                   <button
                     onClick={async () => {
                       try {
                         const qrRes = await api.get(`/loans/${loan._id}/qrcode`);
-                        navigate("/app/ticket", { state: { type: "loan", loan, qrCode: qrRes.data.qrCode } });
+                        navigate("/app/ticket", { state: { type: "active", loan, qrCode: qrRes.data.qrCode } });
                       } catch {
                         toast.error(t("errorOccurred"));
                       }
                     }}
-                    className="w-full py-2 rounded-lg text-xs font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100 transition-colors"
+                    className="w-full py-2 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
                   >
-                    📥 Voir le Bon d'emprunt
+                    📖 Voir le Bon d'emprunt
                   </button>
                 )}
                 {user?.role === "student" && loan.status === "returned" && (
                   <button
-                    onClick={() => {
-                      navigate("/app/ticket", { state: { type: "return", loan } });
-                    }}
+                    onClick={() => navigate("/app/ticket", { state: { type: "return", loan } })}
                     className="w-full py-2 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
                   >
                     📄 Voir le Reçu de retour
@@ -313,7 +414,7 @@ export default function Loans() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {loans.map((loan) => (
+                {displayLoans.map((loan) => (
                   <tr key={loan._id} className="hover:bg-slate-50 transition-colors">
                     {user?.role === "librarian" && (
                       <td className="px-6 py-4">
@@ -325,8 +426,16 @@ export default function Loans() {
                       <p className="text-sm font-medium text-slate-900">{loan.book?.title}</p>
                       <p className="text-xs text-slate-500">{loan.book?.author}</p>
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-600 font-mono">
-                      {new Date(loan.dueDate).toLocaleDateString("fr-FR")}
+                    <td className="px-6 py-4 text-sm font-mono">
+                      {loan.status === "reserved" ? (
+                        <span className="text-amber-600 font-semibold">
+                          ⏰ {safeDate(loan.pickupDeadline, "24h à venir")}
+                        </span>
+                      ) : loan.status === "expired" ? (
+                        <span className="text-red-400">—</span>
+                      ) : (
+                        <span className="text-slate-600">{safeDate(loan.dueDate)}</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`badge ${statusColor(loan.status)}`}>
@@ -335,37 +444,58 @@ export default function Loans() {
                     </td>
                     {user?.role === "student" && (
                       <td className="px-6 py-4 text-right">
-                        {(loan.status === "pending" || loan.status === "active" || loan.status === "late") && (
+                        {loan.status === "reserved" && (
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const qrRes = await api.get(`/loans/${loan._id}/qrcode`);
+                                  navigate("/app/ticket", { state: { type: "reservation", loan, qrCode: qrRes.data.qrCode } });
+                                } catch {
+                                  toast.error(t("errorOccurred"));
+                                }
+                              }}
+                              className="inline-flex items-center gap-1 text-xs bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors font-medium border border-amber-100"
+                            >
+                              📥 Bon de réservation
+                            </button>
+                            <button
+                              onClick={() => handleCancel(loan._id)}
+                              className="inline-flex items-center gap-1 text-xs bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors font-medium border border-red-100"
+                            >
+                              ✕ Annuler
+                            </button>
+                          </div>
+                        )}
+                        {(loan.status === "active" || loan.status === "late") && (
                           <button
                             onClick={async () => {
                               try {
                                 const qrRes = await api.get(`/loans/${loan._id}/qrcode`);
-                                navigate("/app/ticket", { state: { type: "loan", loan, qrCode: qrRes.data.qrCode } });
+                                navigate("/app/ticket", { state: { type: "active", loan, qrCode: qrRes.data.qrCode } });
                               } catch {
                                 toast.error(t("errorOccurred"));
                               }
                             }}
-                            className="inline-flex items-center gap-1 text-xs bg-sky-50 text-sky-700 px-3 py-1.5 rounded-lg hover:bg-sky-100 transition-colors font-medium border border-sky-100"
+                            className="inline-flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors font-medium border border-indigo-100"
                           >
-                            📥 Voir le Bon
+                            📖 Bon d'emprunt
                           </button>
                         )}
                         {loan.status === "returned" && (
                           <button
-                            onClick={() => {
-                              navigate("/app/ticket", { state: { type: "return", loan } });
-                            }}
+                            onClick={() => navigate("/app/ticket", { state: { type: "return", loan } })}
                             className="inline-flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors font-medium border border-emerald-100"
                           >
-                            📄 Voir le Reçu
+                            📄 Reçu de retour
                           </button>
                         )}
                       </td>
                     )}
                     {user?.role === "librarian" && (
                       <td className="px-6 py-4 text-right">
-                        {loan.status === "pending" && (
-                          <button onClick={() => setShowScanner(true)} className="inline-flex items-center gap-1 text-xs bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors font-medium">
+                        {loan.status === "reserved" && (
+                          <button onClick={() => setShowScanner(true)} className="inline-flex items-center gap-1 text-xs bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors font-medium border border-amber-100">
                             📷 {t("confirmScan")}
                           </button>
                         )}
@@ -373,6 +503,9 @@ export default function Loans() {
                           <button onClick={() => setShowScanner(true)} className="inline-flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors font-medium border border-emerald-100">
                             ✓ {t("returnScan")}
                           </button>
+                        )}
+                        {loan.status === "expired" && (
+                          <span className="text-xs text-red-400 font-medium">⏰ Expiré</span>
                         )}
                         {loan.status === "returned" && <span className="text-xs text-slate-300">—</span>}
                       </td>
@@ -382,8 +515,8 @@ export default function Loans() {
               </tbody>
             </table>
           </div>
-        </>
-      )}
+        </>;
+      })()}
     </div>
   );
 }
