@@ -19,7 +19,7 @@
 - 📖 **Demande d'emprunt** — soumettre une demande en un clic, recevoir un bon PDF avec QR code
 - 📄 **Reçu de retour automatique** — PDF généré automatiquement en temps réel via Socket.IO dès que le bibliothécaire confirme le retour
 - 🏆 **Gamification** — points et badges débloqués à chaque livre rendu
-- 🤖 **Assistant IA (Lia)** — chat avec mémoire, résumés de livres, recommandations personnalisées
+- 🤖 **Assistant IA (BookIA)** — chat avec mémoire, résumés de livres, recommandations personnalisées
 - 🔊 **TTS / STT** — lecture vocale des réponses IA & dictée vocale (Web Speech API)
 - 🌐 **Multilingue** — interface FR / EN
 
@@ -197,7 +197,7 @@ L'application est disponible sur **http://localhost:5173**
 ### Intelligence Artificielle
 | Méthode | Route | Description |
 |---------|-------|-------------|
-| `POST` | `/api/ai/chat` | Chat avec Lia (LLaMA 3.3 via Groq) |
+| `POST` | `/api/ai/chat` | Chat avec BookIA (LLaMA 3.3 via Groq) |
 | `POST` | `/api/ai/summarize` | Résumé d'un livre (par ID ou titre) |
 | `POST` | `/api/ai/recommend` | Recommandations personnalisées |
 

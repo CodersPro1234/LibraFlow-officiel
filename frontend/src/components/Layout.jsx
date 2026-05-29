@@ -341,7 +341,7 @@ export default function Layout() {
         </div>
       </main>
 
-      {/* ── Lia — Assistant flottant ── */}
+      {/* ── BookIA — Assistant flottant ── */}
       <FloatingAI />
     </div>
   );

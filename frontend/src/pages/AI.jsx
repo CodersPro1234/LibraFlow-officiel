@@ -634,7 +634,7 @@ export default function AI() {
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center">
             <Sparkles className="w-3.5 h-3.5 text-white" />
           </div>
-          <span className="font-bold text-slate-900 text-sm hidden sm:block">Lia — Assistant LibraFlow</span>
+          <span className="font-bold text-slate-900 text-sm hidden sm:block">BookIA — Assistant LibraFlow</span>
         </div>
 
         {TABS.map(({ key, label, Icon }) => (
@@ -723,9 +723,9 @@ export default function AI() {
                       <div className="w-14 h-14 rounded-2xl bg-slate-200 flex items-center justify-center mb-4">
                         <WifiOff className="w-7 h-7 text-slate-400" />
                       </div>
-                      <h3 className="text-slate-600 font-bold mb-2">Lia est hors-ligne</h3>
+                      <h3 className="text-slate-600 font-bold mb-2">BookIA est hors-ligne</h3>
                       <p className="text-slate-400 text-sm max-w-xs leading-relaxed">
-                        L'IA nécessite une connexion internet. Reconnectez-vous pour discuter avec Lia.
+                        L'IA nécessite une connexion internet. Reconnectez-vous pour discuter avec BookIA.
                       </p>
                     </>
                   ) : (
@@ -733,7 +733,7 @@ export default function AI() {
                       <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center mb-4 shadow-lg">
                         <Bot className="w-7 h-7 text-white" />
                       </div>
-                      <h3 className="text-slate-700 font-bold mb-2">Bonjour ! Je suis Lia 👋</h3>
+                      <h3 className="text-slate-700 font-bold mb-2">Bonjour ! Je suis BookIA 👋</h3>
                       <p className="text-slate-400 text-sm max-w-xs leading-relaxed">
                         Posez-moi vos questions sur les livres, demandez un résumé, des recommandations, ou explorez le catalogue.
                       </p>

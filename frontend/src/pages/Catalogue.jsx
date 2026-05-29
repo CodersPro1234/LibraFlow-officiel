@@ -494,7 +494,7 @@ export default function Catalogue() {
             </div>
             <div>
               <p className="text-sm font-bold text-slate-800">Vous cherchez un livre spécifique ?</p>
-              <p className="text-xs text-slate-500 mt-0.5">Lia, notre IA, peut vous recommander des livres en un instant.</p>
+              <p className="text-xs text-slate-500 mt-0.5">BookIA, notre IA, peut vous recommander des livres en un instant.</p>
             </div>
           </div>
           <a
@@ -502,7 +502,7 @@ export default function Catalogue() {
             className="flex-shrink-0 flex items-center gap-2 bg-gradient-to-r from-sky-500 to-indigo-600 text-white text-xs font-bold px-5 py-2.5 rounded-xl hover:shadow-md transition-all"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Demander à Lia
+            Demander à BookIA
           </a>
         </div>
       )}

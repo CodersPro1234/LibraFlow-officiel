@@ -106,7 +106,7 @@ async function buildLibrarianPrompt(librarianName) {
   const { catalogText, bookCount } = await buildCatalogContext();
   const statsText = await buildStatsContext();
 
-  return `Tu es Lia, l'assistante IA intelligente de LibraFlow — le système de gestion de bibliothèque du BIT (Burkina Institute of Technology).
+  return `Tu es BookIA, l'assistante IA intelligente de LibraFlow — le système de gestion de bibliothèque du BIT (Burkina Institute of Technology).
 Tu travailles avec le bibliothécaire ${librarianName || ""}. Tu es son assistant de confiance pour gérer la bibliothèque.
 
 ══════════════════════════════════════════════
@@ -144,7 +144,7 @@ STYLE : Professionnel mais accessible. Données précises. Réponses structurée
 async function buildStudentPrompt(studentName) {
   const { catalogText, bookCount } = await buildCatalogContext();
 
-  return `Tu es Lia, l'assistante IA de la bibliothèque LibraFlow du BIT (Burkina Institute of Technology).
+  return `Tu es BookIA, l'assistante IA de la bibliothèque LibraFlow du BIT (Burkina Institute of Technology).
 Tu aides ${studentName || "l'étudiant"} à trouver de bons livres et à utiliser la bibliothèque.
 
 ══════════════════════════════════════════════

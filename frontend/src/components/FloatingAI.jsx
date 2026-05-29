@@ -144,7 +144,7 @@ function TypingDots() {
 
 const WELCOME = {
   role: "assistant",
-  content: "Bonjour ! Je suis Lia, votre assistante LibraFlow 📚 Je peux vous aider à trouver un livre, obtenir des recommandations ou répondre à vos questions. Comment puis-je vous aider ?",
+  content: "Bonjour ! Je suis BookIA, votre assistante LibraFlow 📚 Je peux vous aider à trouver un livre, obtenir des recommandations ou répondre à vos questions. Comment puis-je vous aider ?",
 };
 
 /* Dimensions du panel (PANEL_W est la largeur max — on la clamp sur mobile) */
@@ -497,7 +497,7 @@ export default function FloatingAI() {
             onTouchStart={onTouchStart}
             title="Glisser pour déplacer"
           >
-            {/* Avatar Lia */}
+            {/* Avatar BookIA */}
             <div className="relative flex-shrink-0 pointer-events-none">
               <div className="w-9 h-9 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center">
                 <Bot className="w-5 h-5 text-white" />
@@ -507,7 +507,7 @@ export default function FloatingAI() {
 
             {/* Nom + statut */}
             <div className="flex-1 min-w-0 pointer-events-none">
-              <p className="text-white font-bold text-sm leading-none">Lia</p>
+              <p className="text-white font-bold text-sm leading-none">BookIA</p>
               <p className="text-sky-200 text-[10px] mt-0.5 uppercase tracking-widest font-medium">● En ligne</p>
             </div>
 
@@ -620,7 +620,7 @@ export default function FloatingAI() {
             ? "w-14 h-14 justify-center rounded-full bg-slate-800 text-white"
             : "h-14 px-3 rounded-full hover:rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-600 text-white"
         }`}
-        aria-label={isOpen ? "Fermer l'assistant Lia" : "Ouvrir l'assistant Lia"}
+        aria-label={isOpen ? "Fermer l'assistant BookIA" : "Ouvrir l'assistant BookIA"}
       >
         {/* Halos animés — position absolute, n'affectent PAS getBoundingClientRect */}
         {!isOpen && (
@@ -640,7 +640,7 @@ export default function FloatingAI() {
         {!isOpen && (
           <div className="relative z-10 text-left pointer-events-none max-w-0 opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 group-hover:ml-3 transition-all duration-300 whitespace-nowrap overflow-hidden">
             <p className="text-[10px] font-bold uppercase tracking-widest text-white/70 leading-none">Besoin d'aide ?</p>
-            <p className="text-sm font-bold leading-tight mt-0.5">Demander à Lia</p>
+            <p className="text-sm font-bold leading-tight mt-0.5">Demander à BookIA</p>
           </div>
         )}
       </button>
